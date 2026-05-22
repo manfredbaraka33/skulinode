@@ -1,14 +1,16 @@
 #!/bin/bash
 set -e
 
-cd /home/skulinode/app
+cd /home/skulinode/skulinode
 git pull origin main
 
 source venv/bin/activate
-pip install -r requirements.txt --quiet
+pip install -r backend/requirements.txt --quiet
 
+cd backend
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
+cd ..
 
 cd frontend
 npm install --silent

@@ -13,5 +13,5 @@ jobs:
           username: skulinode
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/skulinode/app
-            ./deploy.sh
+            cd /home/skulinode/skulinode
+            bash backend/deploy.sh
