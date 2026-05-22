@@ -3,7 +3,7 @@ import axios from 'axios';
 const STORAGE_KEY = 'skulinode_auth';
 
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -66,7 +66,7 @@ apiClient.interceptors.response.use(
       if (!auth?.refreshToken) throw new Error('No refresh token');
 
       const { data } = await axios.post(
-        'http://127.0.0.1:8000/api/v1/auth/token/refresh/',
+        `${import.meta.env.VITE_API_URL}/auth/token/refresh/`,
         { refresh: auth.refreshToken },
       );
 

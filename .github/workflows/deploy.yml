@@ -1,17 +1,17 @@
 name: Deploy SkuliNode
-
 on:
   push:
     branches: [main]
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to DigitalOcean
+      - name: Trigger Server Deploy Script
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DO_IP }}
           username: skulinode
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: bash /home/skulinode/app/deploy.sh
+          script: |
+            cd /home/skulinode/app
+            ./deploy.sh
