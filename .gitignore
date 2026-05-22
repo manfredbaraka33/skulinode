@@ -1,0 +1,20 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+
+# Django collected statics and uploads
+staticfiles/
+media/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
