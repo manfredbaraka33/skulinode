@@ -1,8 +1,7 @@
 #!/bin/bash
 set -e
 
-cd /home/skulinode/skulinode
-git pull origin main
+# git pull is now handled by the workflow before this script runs
 
 source venv/bin/activate
 pip install -r backend/requirements.txt --quiet

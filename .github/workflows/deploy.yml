@@ -14,4 +14,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/skulinode/skulinode
+            git pull origin main
             bash backend/deploy.sh
