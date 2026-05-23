@@ -17,6 +17,7 @@ import StudentSubjectsPage from './pages/StudentSubjectsPage';
 import AssignmentsPage from './pages/AssignmentsPage';
 import GradeConfigPage from './pages/GradeConfigPage';
 import StaffResultsPage from './pages/StaffResultsPage';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
             <Route path="assignments"  element={<ProtectedRoute allowedRoles={['ADMIN']}><AssignmentsPage /></ProtectedRoute>} />
             <Route path="student-subjects" element={<ProtectedRoute allowedRoles={['ADMIN']}><StudentSubjectsPage /></ProtectedRoute>} />
             <Route path="grade-config"     element={<ProtectedRoute allowedRoles={['ADMIN']}><GradeConfigPage /></ProtectedRoute>} />
+            <Route path="profile"           element={<ProfilePage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 

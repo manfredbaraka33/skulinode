@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
 from core.views import (
+    ChangeOwnPasswordView,
     CustomTokenObtainPairView,
     RegisterSchoolView,
     RegisterUserView,
@@ -22,9 +23,10 @@ urlpatterns = [
     path('auth/register-school/',  RegisterSchoolView.as_view(),        name='register_school'),
 
     # Core app endpoints
-    path('user/profile/',       UserProfileView.as_view(),           name='user_profile'),
-    path('school/',             SchoolDetailView.as_view(),          name='school_detail'),
-    path('schools/',            SchoolListView.as_view(),            name='school_list'),
+    path('user/profile/',          UserProfileView.as_view(),          name='user_profile'),
+    path('user/change-password/',  ChangeOwnPasswordView.as_view(),    name='user_change_password'),
+    path('school/',                SchoolDetailView.as_view(),         name='school_detail'),
+    path('schools/',               SchoolListView.as_view(),           name='school_list'),
 
     # Staff management (school admin only)
     path('users/',              StaffListCreateView.as_view(),       name='staff_list_create'),

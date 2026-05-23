@@ -4,7 +4,7 @@ import {
   School, LayoutDashboard, GraduationCap, BookOpen, LayoutGrid,
   ClipboardList, Users, UserCheck, BarChart2, FileText,
   LogOut, Menu, Sun, Moon, X, Settings, Layers, BookCheck,
-  SlidersHorizontal, ChevronLeft, ChevronRight,
+  SlidersHorizontal, ChevronLeft, ChevronRight, KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -143,6 +143,9 @@ export default function Dashboard() {
               <SidebarLink to={`/${slug}/staff-results`} icon={BarChart2}   label="Class Results" onClick={onClose} collapsed={isCollapsed} />
             </>
           )}
+
+          <SidebarSection label="Account" collapsed={isCollapsed} />
+          <SidebarLink to={`/${slug}/profile`} icon={KeyRound} label="My Account" onClick={onClose} collapsed={isCollapsed} />
         </nav>
 
         {/* User footer */}
