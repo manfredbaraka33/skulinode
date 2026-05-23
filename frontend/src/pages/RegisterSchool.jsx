@@ -17,7 +17,7 @@ const SCHOOL_TYPES = [
   { value: 'PRIMARY',  label: 'Primary School' },
   { value: 'ORDINARY', label: 'Ordinary Secondary — O-Level' },
   { value: 'ADVANCED', label: 'Advanced Secondary — A-Level' },
-  { value: 'COMBINED', label: 'Combined Primary & Secondary' },
+  { value: 'COMBINED', label: 'Combined Ordinary & Advanced (O+A Level)' },
 ];
 
 const STEPS = ['School Information', 'Admin Account'];

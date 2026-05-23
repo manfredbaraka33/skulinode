@@ -33,7 +33,7 @@ class School(models.Model):
         PRIMARY = 'PRIMARY', 'Primary School'
         ORDINARY = 'ORDINARY', 'Ordinary Secondary — O-Level'
         ADVANCED = 'ADVANCED', 'Advanced Secondary — A-Level'
-        COMBINED = 'COMBINED', 'Combined Primary & Secondary'
+        COMBINED = 'COMBINED', 'Combined Ordinary & Advanced (O+A Level)'
 
     name = models.CharField(
         max_length=255,

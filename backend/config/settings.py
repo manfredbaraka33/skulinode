@@ -61,9 +61,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+_db_url = config('DATABASE_URL', default=None) or (
+    'postgres://{user}:{password}@{host}:{port}/{name}'.format(
+        user=config('DB_USER', default='postgres'),
+        password=config('DB_PASSWORD', default=''),
+        host=config('DB_HOST', default='localhost'),
+        port=config('DB_PORT', default='5432'),
+        name=config('DB_NAME', default='skulinode_db'),
+    )
+)
+
 DATABASES = {
     'default': dj_database_url.config(
-        default=config('DATABASE_URL'),
+        default=_db_url,
         conn_max_age=600,
         conn_health_checks=True,
     )
