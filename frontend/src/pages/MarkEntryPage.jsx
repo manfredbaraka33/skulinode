@@ -291,7 +291,12 @@ function MarkConsole({ assignment, onBack, showToast }) {
         responseType: 'blob',
       });
       const url = window.URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
-      window.open(url, '_blank');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `marksheet_${assignment.subject}_${assignment.stream}_${selectedAssessment}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       setTimeout(() => window.URL.revokeObjectURL(url), 30000);
     } catch { showToast('Failed to generate PDF.', 'error'); }
     finally { setPdfLoading(false); }
@@ -422,7 +427,8 @@ function MarkConsole({ assignment, onBack, showToast }) {
           {/* Mark entry table */}
           <div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-120">
                 <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">#</th>
@@ -477,6 +483,7 @@ function MarkConsole({ assignment, onBack, showToast }) {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
 

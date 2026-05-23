@@ -79,7 +79,8 @@ export default function AssessmentsPage() {
         ) : assessments.length === 0 ? (
           <EmptyState message="No assessments yet. Create your first exam or test!" />
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-105">
             <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 {['Name', 'Year', 'Status', 'Actions'].map(h => (
@@ -118,6 +119,7 @@ export default function AssessmentsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

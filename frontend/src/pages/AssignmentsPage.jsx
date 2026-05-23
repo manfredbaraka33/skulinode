@@ -113,7 +113,8 @@ export default function AssignmentsPage() {
         <EmptyState message="No assignments found. Create one to get started." />
       ) : (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead className="bg-slate-50 dark:bg-slate-700/50">
               <tr>
                 {['Subject', 'Class / Stream', 'Teacher', 'Year', ''].map((h, i) => (
@@ -144,6 +145,7 @@ export default function AssignmentsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

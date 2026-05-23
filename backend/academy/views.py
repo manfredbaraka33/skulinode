@@ -467,15 +467,15 @@ class ResultsView(APIView):
                 'subjects_count': len([r for r in subject_results if not r['excluded'] and r['score'] is not None]),
             })
 
-        # Rank: PRIMARY → by total_score desc; O/A level → by points asc (lower=better)
+        # Rank: PRIMARY → by total_score desc; O/A level → by average desc (points asc tiebreaker)
         if school_type == 'PRIMARY':
             rows_ranked = [r for r in rows if r['total_score'] is not None]
             rows_unranked = [r for r in rows if r['total_score'] is None]
             rows_ranked.sort(key=lambda r: -r['total_score'])
         else:
-            rows_ranked = [r for r in rows if r['points'] is not None]
-            rows_unranked = [r for r in rows if r['points'] is None]
-            rows_ranked.sort(key=lambda r: (r['points'], -r['total_score']))
+            rows_ranked = [r for r in rows if r['average'] is not None]
+            rows_unranked = [r for r in rows if r['average'] is None]
+            rows_ranked.sort(key=lambda r: (-(r['average'] or 0), (r['points'] or 999)))
 
         total_students = len(students)
         for i, r in enumerate(rows_ranked, 1):
@@ -488,6 +488,7 @@ class ResultsView(APIView):
         return Response({
             'school_type': school_type,
             'subjects': [s.name for s in subjects],
+            'subject_codes': {s.name: s.code for s in subjects},
             'students': rows_ranked + rows_unranked,
         })
 
@@ -784,8 +785,8 @@ class SendSMSView(APIView):
                 )
             else:
                 ranked = sorted(
-                    [(s, summ) for s, summ in pairs if summ['points'] is not None],
-                    key=lambda x: x[1]['points'],
+                    [(s, summ) for s, summ in pairs if summ['average'] is not None],
+                    key=lambda x: (-(x[1]['average'] or 0), (x[1]['points'] or 999)),
                 )
             for pos, (s, _) in enumerate(ranked, start=1):
                 rank_map[s.id] = (pos, total)

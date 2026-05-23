@@ -246,7 +246,7 @@ def _fetch_results_data(request):
             'division': summary['division'],
         })
 
-    # Rank
+    # Rank: PRIMARY → by total_score desc; O/A level → by average desc (points asc tiebreaker)
     if school_type == 'PRIMARY':
         rows_ranked = sorted(
             [r for r in rows if r['total_score'] is not None],
@@ -255,10 +255,10 @@ def _fetch_results_data(request):
         rows_unranked = [r for r in rows if r['total_score'] is None]
     else:
         rows_ranked = sorted(
-            [r for r in rows if r['points'] is not None],
-            key=lambda r: (r['points'], -(r['total_score'] or 0)),
+            [r for r in rows if r['average'] is not None],
+            key=lambda r: (-(r['average'] or 0), (r['points'] or 999)),
         )
-        rows_unranked = [r for r in rows if r['points'] is None]
+        rows_unranked = [r for r in rows if r['average'] is None]
 
     total_students = len(rows)
     for i, r in enumerate(rows_ranked, 1):
@@ -288,6 +288,7 @@ def _fetch_results_data(request):
         'school': school,
         'school_type': school_type,
         'subjects': [s.name for s in subjects],
+        'subject_codes': {s.name: s.code for s in subjects},
         'students': all_rows,
         'stream_label': stream_label,
         'assessment_name': assessment_name,
@@ -299,14 +300,29 @@ def _fetch_results_data(request):
 # ── ReportLab building blocks ──────────────────────────────────────────────────
 
 def _logo_image(school, size_mm=30):
-    """Return an Image flowable for the school logo, or None if unavailable."""
-    if school.logo and school.logo.name:
-        try:
-            logo_path = school.logo.path
-            if os.path.exists(logo_path):
-                return Image(logo_path, width=size_mm * mm, height=size_mm * mm)
-        except Exception:
-            pass
+    """Return an Image flowable for the school logo, or None if unavailable.
+
+    Tries local file path first (non-Cloudinary), then falls back to downloading
+    from the storage URL (Cloudinary / remote storage).
+    """
+    if not school.logo or not school.logo.name:
+        return None
+    # 1. Try local file path (works for non-Cloudinary / DEBUG setups)
+    try:
+        logo_path = school.logo.path
+        if os.path.exists(logo_path):
+            return Image(logo_path, width=size_mm * mm, height=size_mm * mm)
+    except Exception:
+        pass
+    # 2. Fallback: download from remote storage URL (Cloudinary, S3, etc.)
+    try:
+        import urllib.request
+        url = school.logo.url
+        with urllib.request.urlopen(url, timeout=10) as response:  # nosec B310
+            img_bytes = io.BytesIO(response.read())
+        return Image(img_bytes, width=size_mm * mm, height=size_mm * mm)
+    except Exception:
+        pass
     return None
 
 
@@ -451,7 +467,7 @@ class ResultsPDFView(APIView):
         students = data['students']
         is_primary = school_type == 'PRIMARY'
         grade_labels = ['A', 'B', 'C', 'D', 'E', 'F'] if school_type == 'ADVANCED' else ['A', 'B', 'C', 'D', 'F']
-        sub_codes = _make_subject_codes(subjects)
+        sub_codes = data['subject_codes']   # use admin-registered subject codes
         analytics = _build_analytics(subjects, students, school_type)
 
         buf = io.BytesIO()

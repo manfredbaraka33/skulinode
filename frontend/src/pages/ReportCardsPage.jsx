@@ -82,7 +82,15 @@ export default function ReportCardsPage() {
       if (singleStudentId) payload.student_id = singleStudentId;
       const r = await apiClient.post('/academy/report-cards/pdf/', payload, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
-      window.open(url, '_blank');
+      const filename = singleStudentId
+        ? `report_card_${singleStudentId}.pdf`
+        : `report_cards_${stream}_${assessment}.pdf`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       setTimeout(() => window.URL.revokeObjectURL(url), 30000);
     } catch { showToast('Failed to generate PDF.', 'error'); }
     finally { setPdfLoading(false); }

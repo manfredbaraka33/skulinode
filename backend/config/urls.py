@@ -1,7 +1,7 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
+from django.views.static import serve
 
 
 # Customize the Django Admin text
@@ -15,6 +15,12 @@ urlpatterns = [
     path('api/v1/', include('api.urls')),
 ]
 
+# Serve local media files regardless of DEBUG setting.
+# In production behind nginx/Caddy, the web server handles /media/ before Django.
+# On platforms without a dedicated media proxy (e.g. Railway, Render), Django serves it.
+# Cloudinary uploads bypass this entirely — their URLs are absolute Cloudinary links.
 if not settings.USE_CLOUDINARY:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    ]
 

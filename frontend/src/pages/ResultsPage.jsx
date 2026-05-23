@@ -164,7 +164,10 @@ export default function ResultsPage() {
   const completionPct     = totalSubjects ? Math.round((submittedSubjects / totalSubjects) * 100) : 0;
 
   // Derived
-  const subjectCodes  = results ? makeSubjectCodes(results.subjects) : {};
+  // Use admin-registered subject codes from API; fall back to generated ones if absent
+  const subjectCodes  = results
+    ? (results.subject_codes ?? makeSubjectCodes(results.subjects))
+    : {};
   const analytics     = results ? buildAnalytics(results.subjects, results.students, results.school_type) : [];
   const gradeLabels   = results?.school_type === 'ADVANCED' ? ['A','B','C','D','E','F'] : ['A','B','C','D','F'];
   const isPrimary     = results?.school_type === 'PRIMARY';
@@ -213,7 +216,12 @@ export default function ResultsPage() {
         responseType: 'blob',
       });
       const url = window.URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
-      window.open(url, '_blank');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `results_${stream}_${assessment}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       setTimeout(() => window.URL.revokeObjectURL(url), 30000);
     } catch {
       showToast('Failed to generate PDF.', 'error');

@@ -4,12 +4,12 @@
 # Admins may override these via GradeConfig, but the labels/points follow NECTA.
 
 NECTA_DEFAULTS = {
-    # O-Level (CSEE): A≥75, B≥65, C≥50, D≥30, F<30
+    # O-Level (CSEE): A≥75, B≥65, C≥45, D≥30, F<30
     'ORDINARY': [
         {'grade_label': 'A', 'min_score': 75, 'max_score': 100, 'points': 1, 'remarks': 'Excellent'},
         {'grade_label': 'B', 'min_score': 65, 'max_score': 74,  'points': 2, 'remarks': 'Very Good'},
-        {'grade_label': 'C', 'min_score': 50, 'max_score': 64,  'points': 3, 'remarks': 'Good'},
-        {'grade_label': 'D', 'min_score': 30, 'max_score': 49,  'points': 4, 'remarks': 'Average'},
+        {'grade_label': 'C', 'min_score': 45, 'max_score': 64,  'points': 3, 'remarks': 'Good'},
+        {'grade_label': 'D', 'min_score': 30, 'max_score': 44,  'points': 4, 'remarks': 'Average'},
         {'grade_label': 'F', 'min_score':  0, 'max_score': 29,  'points': 5, 'remarks': 'Fail'},
     ],
     # A-Level (ACSEE): A≥80, B≥70, C≥60, D≥50, E≥40, F<40
