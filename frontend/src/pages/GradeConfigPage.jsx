@@ -219,7 +219,8 @@ export default function GradeConfigPage() {
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-120">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide w-24">Grade</th>
@@ -327,6 +328,7 @@ export default function GradeConfigPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700/60">
             <button onClick={addRow}

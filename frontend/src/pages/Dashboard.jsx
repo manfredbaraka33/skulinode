@@ -5,6 +5,7 @@ import {
   ClipboardList, Users, UserCheck, BarChart2, FileText,
   LogOut, Menu, Sun, Moon, X, Settings, Layers, BookCheck,
   SlidersHorizontal, ChevronLeft, ChevronRight, KeyRound,
+  Phone, MessageSquarePlus,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -145,7 +146,9 @@ export default function Dashboard() {
           )}
 
           <SidebarSection label="Account" collapsed={isCollapsed} />
-          <SidebarLink to={`/${slug}/profile`} icon={KeyRound} label="My Account" onClick={onClose} collapsed={isCollapsed} />
+          <SidebarLink to={`/${slug}/profile`}  icon={KeyRound}          label="My Account"  onClick={onClose} collapsed={isCollapsed} />
+          <SidebarLink to={`/${slug}/feedback`} icon={MessageSquarePlus} label="Feedback"     onClick={onClose} collapsed={isCollapsed} />
+          <SidebarLink to={`/${slug}/contact`}  icon={Phone}             label="Contact Us"  onClick={onClose} collapsed={isCollapsed} />
         </nav>
 
         {/* User footer */}

@@ -13,6 +13,7 @@ from core.views import (
     StaffResetPasswordView,
     UserProfileView,
 )
+from api.views import FeedbackCreateView
 
 urlpatterns = [
     # JWT auth endpoints
@@ -35,4 +36,7 @@ urlpatterns = [
 
     # Academy app
     path('academy/', include('academy.urls')),
+
+    # Feedback
+    path('feedback/', FeedbackCreateView.as_view(), name='feedback_create'),
 ]

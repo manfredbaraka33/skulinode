@@ -151,9 +151,10 @@ export default function MarkEntryPage() {
 
 // ── Mark Entry Console ────────────────────────────────────────────────────────
 function MarkConsole({ assignment, onBack, showToast }) {
-  const { auth, isSchoolPaid, isSchoolPaidOrDownloadOnly, refreshSchoolPayment } = useAuth();
+  const { auth, schoolCanAccess, refreshSchoolPayment } = useAuth();
   const isAdmin = auth?.role === 'ADMIN' || (auth?.roles ?? []).includes('ADMIN');
-  const canExport = isSchoolPaidOrDownloadOnly();
+  const canPDF = schoolCanAccess('subject_pdf');
+  const canCSV = schoolCanAccess('subject_csv');
   const [assessments, setAssessments] = useState([]);
   const [gradeConfigs, setGradeConfigs] = useState([]);
   const [selectedAssessment, setSelectedAssessment] = useState(null);
@@ -393,19 +394,27 @@ function MarkConsole({ assignment, onBack, showToast }) {
               title={invalidScores.size > 0 ? 'Fix out-of-range scores first' : ''}>
               {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save Draft
             </button>
-            {canExport && (
-              <>
-                <button onClick={handlePrint} disabled={pdfLoading}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg
-                    border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60 transition">
-                  {pdfLoading ? <Loader2 size={13} className="animate-spin" /> : <Printer size={13} />} PDF
-                </button>
-                <button onClick={handleDownloadCSV}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg
-                    border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition">
-                  <Download size={13} /> CSV
-                </button>
-              </>
+            {(canPDF || isAdmin) && (
+              <button onClick={canPDF ? handlePrint : undefined} disabled={pdfLoading || !canPDF}
+                title={!canPDF && isAdmin ? 'Upgrade to Basic or higher to download PDF' : undefined}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition
+                  ${!canPDF
+                    ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-70'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60'}`}>
+                {pdfLoading ? <Loader2 size={13} className="animate-spin" /> : <Printer size={13} />} PDF
+                {!canPDF && isAdmin && <span className="ml-1 text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
+              </button>
+            )}
+            {(canCSV || isAdmin) && (
+              <button onClick={canCSV ? handleDownloadCSV : undefined} disabled={!canCSV}
+                title={!canCSV && isAdmin ? 'Upgrade to Standard or Pro to download CSV' : undefined}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition
+                  ${!canCSV
+                    ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-70'
+                    : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'}`}>
+                <Download size={13} /> CSV
+                {!canCSV && isAdmin && <span className="ml-1 text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
+              </button>
             )}
             <button onClick={() => setConfirmSubmit(true)} disabled={saving || isAllSubmitted || invalidScores.size > 0}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg

@@ -76,15 +76,19 @@ class School(models.Model):
         default=True,
         verbose_name='Is Active',
     )
-    is_paid = models.BooleanField(
-        default=False,
-        verbose_name='Is Paid',
-        help_text='Toggle on once the school has an active subscription.',
-    )
-    is_paid_without_sms = models.BooleanField(
-        default=False,
-        verbose_name='Is Paid (No SMS)',
-        help_text='Enables all premium features except SMS sending. Mutually exclusive with Is Paid.',
+
+    PLAN_CHOICES = [
+        ('free', 'Free'),
+        ('basic', 'Basic'),
+        ('standard', 'Standard'),
+        ('pro', 'Pro'),
+    ]
+    plan = models.CharField(
+        max_length=20,
+        choices=PLAN_CHOICES,
+        default='free',
+        verbose_name='Plan',
+        help_text='Subscription plan that controls feature access for this school.',
     )
     subscription_expires_at = models.DateField(
         null=True,

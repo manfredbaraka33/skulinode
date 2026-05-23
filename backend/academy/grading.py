@@ -12,21 +12,22 @@ NECTA_DEFAULTS = {
         {'grade_label': 'D', 'min_score': 30, 'max_score': 44,  'points': 4, 'remarks': 'Average'},
         {'grade_label': 'F', 'min_score':  0, 'max_score': 29,  'points': 5, 'remarks': 'Fail'},
     ],
-    # A-Level (ACSEE): A≥80, B≥70, C≥60, D≥50, E≥40, F<40
+    # A-Level (ACSEE): A≥80, B≥70, C≥60, D≥50, E≥40, S≥35, F<35
     'ADVANCED': [
         {'grade_label': 'A', 'min_score': 80, 'max_score': 100, 'points': 1, 'remarks': 'Excellent'},
         {'grade_label': 'B', 'min_score': 70, 'max_score': 79,  'points': 2, 'remarks': 'Very Good'},
         {'grade_label': 'C', 'min_score': 60, 'max_score': 69,  'points': 3, 'remarks': 'Good'},
         {'grade_label': 'D', 'min_score': 50, 'max_score': 59,  'points': 4, 'remarks': 'Average'},
         {'grade_label': 'E', 'min_score': 40, 'max_score': 49,  'points': 5, 'remarks': 'Average'},
-        {'grade_label': 'F', 'min_score':  0, 'max_score': 39,  'points': 0, 'remarks': 'Fail'},
+        {'grade_label': 'S', 'min_score': 35, 'max_score': 39,  'points': 0, 'remarks': 'Subsidiary Pass'},
+        {'grade_label': 'F', 'min_score':  0, 'max_score': 34,  'points': 0, 'remarks': 'Fail'},
     ],
-    # Primary (SFNA/PSLE): A≥80, B≥60, C≥45, D≥30, F<30
+    # Primary (PSLE): A≥75, B≥65, C≥45, D≥30, F<30
     'PRIMARY': [
-        {'grade_label': 'A', 'min_score': 80, 'max_score': 100, 'points': 1, 'remarks': 'Excellent'},
-        {'grade_label': 'B', 'min_score': 60, 'max_score': 79,  'points': 2, 'remarks': 'Very Good'},
-        {'grade_label': 'C', 'min_score': 45, 'max_score': 59,  'points': 3, 'remarks': 'Good'},
-        {'grade_label': 'D', 'min_score': 30, 'max_score': 44,  'points': 4, 'remarks': 'Average'},
+        {'grade_label': 'A', 'min_score': 75, 'max_score': 100, 'points': 1, 'remarks': 'Excellent'},
+        {'grade_label': 'B', 'min_score': 65, 'max_score': 74,  'points': 2, 'remarks': 'Very Good'},
+        {'grade_label': 'C', 'min_score': 45, 'max_score': 64,  'points': 3, 'remarks': 'Good'},
+        {'grade_label': 'D', 'min_score': 30, 'max_score': 44,  'points': 4, 'remarks': 'Satisfactory'},
         {'grade_label': 'F', 'min_score':  0, 'max_score': 29,  'points': 5, 'remarks': 'Fail'},
     ],
 }
@@ -249,17 +250,25 @@ def compute_student_summary(school_type: str, subject_results: list, configs: li
         }
 
     # O-Level / A-Level / Combined — compute NECTA aggregate points
-    gpa_list = []
-    for r in scored:
-        g = get_grade_from_configs(r['score'], defaults)
-        pts = next((row['points'] for row in defaults if row['grade_label'] == g), None)
-        if pts is not None:
-            gpa_list.append(pts)
-
     if school_type == 'ADVANCED':
+        # For A-Level, only subjects where counts_in_division=True contribute to division points.
+        # Subsidiary subjects (GS, BAM) are excluded from the points tally.
+        div_scored = [r for r in scored if r.get('counts_in_division', True)]
+        gpa_list = []
+        for r in div_scored:
+            g = get_grade_from_configs(r['score'], defaults)
+            pts = next((row['points'] for row in defaults if row['grade_label'] == g), None)
+            if pts is not None:
+                gpa_list.append(pts)
         points = get_points_a_level(gpa_list)
         division = get_division_a_level(points) if gpa_list else None
     else:
+        gpa_list = []
+        for r in scored:
+            g = get_grade_from_configs(r['score'], defaults)
+            pts = next((row['points'] for row in defaults if row['grade_label'] == g), None)
+            if pts is not None:
+                gpa_list.append(pts)
         points = get_points_o_level(gpa_list)
         division = get_division_o_level(points) if gpa_list else None
 

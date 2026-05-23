@@ -30,11 +30,11 @@ function gradeFromScore(score) {
 }
 
 export default function ReportCardsPage() {
-  const { auth, isSchoolPaid, isSchoolPaidOrDownloadOnly } = useAuth();
+  const { auth, schoolCanAccess } = useAuth();
   const [toast, showToast, clearToast] = useToast();
 
   const isTeacher = auth?.role === 'TEACHER';
-  const showPaymentNotice = !isTeacher && !isSchoolPaidOrDownloadOnly();
+  const showPaymentNotice = !isTeacher && !schoolCanAccess('report_cards');
   const [streams, setStreams]         = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [school, setSchool]           = useState(null);
@@ -122,21 +122,23 @@ export default function ReportCardsPage() {
             <div className="flex gap-2">
               <button onClick={() => !showPaymentNotice && downloadPDF(currentStudent?.student_id)}
                 disabled={pdfLoading || showPaymentNotice}
-                title={showPaymentNotice ? 'Upgrade subscription to generate PDFs' : undefined}
+                title={showPaymentNotice ? 'Upgrade to Standard or Pro to generate PDFs' : undefined}
                 className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border transition
                   ${showPaymentNotice
-                    ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-60'
+                    ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-70'
                     : 'border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60'}`}>
                 {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} This Card
+                {showPaymentNotice && <span className="ml-1 text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
               </button>
               <button onClick={() => !showPaymentNotice && downloadPDF()}
                 disabled={pdfLoading || showPaymentNotice}
-                title={showPaymentNotice ? 'Upgrade subscription to generate PDFs' : undefined}
+                title={showPaymentNotice ? 'Upgrade to Standard or Pro to generate PDFs' : undefined}
                 className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg transition
                   ${showPaymentNotice
-                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-70'
                     : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60'}`}>
                 {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} All Cards ({students.length})
+                {showPaymentNotice && <span className="ml-1 text-xs bg-slate-300 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
               </button>
             </div>
           )

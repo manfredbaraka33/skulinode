@@ -50,6 +50,7 @@ export default function SchoolSettingsPage() {
   const [school, setSchool]     = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
+  const [logoError, setLogoError] = useState('');
   const [errors, setErrors]     = useState({});
   const logoRef = useRef();
 
@@ -68,6 +69,24 @@ export default function SchoolSettingsPage() {
   function handleLogoChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const MAX_SIZE_MB = 5;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setLogoError('Unsupported file type. Please upload a JPEG, PNG, WebP, or GIF image.');
+      setLogoFile(null);
+      e.target.value = '';
+      return;
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setLogoError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is ${MAX_SIZE_MB} MB.`);
+      setLogoFile(null);
+      e.target.value = '';
+      return;
+    }
+
+    setLogoError('');
     setLogoFile(file);
     const reader = new FileReader();
     reader.onload = ev => setLogoPreview(ev.target.result);
@@ -221,9 +240,9 @@ export default function SchoolSettingsPage() {
             <div className="flex-1 min-w-0">
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
                 Upload a school crest or logo. It will appear on report cards.<br />
-                Recommended: square PNG or JPG, at least 200×200 px.
+                Accepted: JPEG, PNG, WebP, GIF &mdash; max 5 MB. Recommended: square, at least 200×200 px.
               </p>
-              <input ref={logoRef} type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+              <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleLogoChange} className="hidden" />
               <button
                 onClick={() => logoRef.current?.click()}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
@@ -231,7 +250,10 @@ export default function SchoolSettingsPage() {
                 <Upload size={14} /> {logoPreview ? 'Change Logo' : 'Upload Logo'}
               </button>
               {logoFile && <p className="mt-2 text-xs text-green-600 dark:text-green-400">New logo selected: {logoFile.name}</p>}
-              <FieldError message={errors.logo?.[0]} />
+              {logoError
+                ? <p className="mt-2 flex items-center gap-1 text-xs text-red-600"><span>⚠</span> {logoError}</p>
+                : <FieldError message={errors.logo?.[0]} />
+              }
             </div>
           </div>
         </Section>

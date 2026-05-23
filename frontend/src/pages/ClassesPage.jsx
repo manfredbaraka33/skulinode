@@ -88,7 +88,8 @@ export default function ClassesPage() {
         ) : classes.length === 0 ? (
           <EmptyState message="No classes yet. Add your first class to get started!" />
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-120">
             <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 {['Class', 'Stream', 'Level', 'Students', 'Actions'].map(h => (
@@ -143,6 +144,7 @@ export default function ClassesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

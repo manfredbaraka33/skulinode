@@ -2,6 +2,10 @@
 academy/permissions.py
 ----------------------
 Custom DRF permission classes for premium feature gating.
+
+Plan hierarchy (lowest → highest): free < basic < standard < pro
+- IsSchoolPaid             → plan == 'pro'   (SMS, full access)
+- IsSchoolPaidOrDownloadOnly → plan in ('standard', 'pro')  (PDF/CSV/report cards)
 """
 from django.utils import timezone
 from rest_framework.permissions import BasePermission
@@ -9,12 +13,13 @@ from rest_framework.permissions import BasePermission
 
 class IsSchoolPaid(BasePermission):
     """
-    Grants access only when the requesting user's school has an active, unexpired subscription.
+    Grants access only when the requesting user's school has plan='pro' and an
+    unexpired subscription.
 
     Rules:
     - Superusers always pass (platform management).
     - Users without a linked school are denied.
-    - The school must have ``is_paid=True``.
+    - The school must have ``plan='pro'``.
     - If ``subscription_expires_at`` is set, it must be today or in the future.
     """
 
@@ -34,7 +39,7 @@ class IsSchoolPaid(BasePermission):
         if not school:
             return False
 
-        if not school.is_paid:
+        if school.plan != 'pro':
             return False
 
         if school.subscription_expires_at is not None:
@@ -51,14 +56,14 @@ class IsSchoolPaid(BasePermission):
 
 class IsSchoolPaidOrDownloadOnly(BasePermission):
     """
-    Grants access when the school has either ``is_paid`` or ``is_paid_without_sms``
-    set to True.  Used to gate downloads, PDF generation, and publishing.
-    SMS sending requires the stricter ``IsSchoolPaid`` permission.
+    Grants access when the school has plan='standard' or plan='pro'.
+    Used to gate downloads, PDF generation, report cards, and publishing.
+    SMS sending requires the stricter ``IsSchoolPaid`` (pro-only) permission.
 
     Rules:
     - Superusers always pass.
     - Users without a linked school are denied.
-    - ``is_paid`` OR ``is_paid_without_sms`` must be True.
+    - ``plan`` must be 'standard' or 'pro'.
     - If ``subscription_expires_at`` is set, it must be today or in the future.
     """
 
@@ -78,7 +83,7 @@ class IsSchoolPaidOrDownloadOnly(BasePermission):
         if not school:
             return False
 
-        if not (school.is_paid or school.is_paid_without_sms):
+        if school.plan not in ('standard', 'pro'):
             return False
 
         if school.subscription_expires_at is not None:

@@ -76,20 +76,23 @@ const DIV_COLOR = {
 };
 const GRADE_COLOR = {
   A: 'text-green-600', B: 'text-teal-600', C: 'text-yellow-600',
-  D: 'text-orange-500', F: 'text-red-600', E: 'text-purple-500', '-': 'text-slate-300',
+  D: 'text-orange-500', E: 'text-purple-500', S: 'text-indigo-500', F: 'text-red-600', '-': 'text-slate-300',
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ResultsPage() {
-  const { auth, isSchoolPaid, isSchoolPaidOrDownloadOnly } = useAuth();
+  const { auth, schoolCanAccess } = useAuth();
   const [toast, showToast, clearToast] = useToast();
 
   const isAdmin = auth?.role === 'ADMIN' || (auth?.roles ?? []).includes('ADMIN');
   const isTeacher = auth?.role === 'TEACHER';
-  // Show payment notices only to admin/academic roles, never to teachers during mark entry
-  const showDownloadNotice = !isTeacher && !isSchoolPaidOrDownloadOnly();
-  const showSMSNotice = !isSchoolPaid();
+  // Plan-gated feature flags
+  const canDownload = schoolCanAccess('school_pdf');
+  const canCSV      = schoolCanAccess('school_csv');
+  const canSMS      = schoolCanAccess('sms');
+  // Show a notice to admins when downloads/publishing are locked
+  const showDownloadNotice = !isTeacher && !canDownload;
 
   const [streams, setStreams]         = useState([]);
   const [assessments, setAssessments] = useState([]);
@@ -328,50 +331,51 @@ export default function ResultsPage() {
             </button>
             {results && !isTeacher && (
               <>
-                <button onClick={handlePrint} disabled={pdfLoading || showDownloadNotice}
-                  title={showDownloadNotice ? 'Upgrade subscription to download PDF' : undefined}
+                <button onClick={handlePrint} disabled={pdfLoading || !canDownload}
+                  title={!canDownload ? 'Upgrade to Standard or Pro to download PDF' : undefined}
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border transition
-                    ${showDownloadNotice
-                      ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-60'
+                    ${!canDownload
+                      ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-70'
                       : 'border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50'}`}>
                   {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />} Download PDF
+                  {!canDownload && <span className="ml-1 text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
                 </button>
-                <button onClick={!showDownloadNotice ? handleDownloadCSV : undefined}
-                  disabled={showDownloadNotice}
-                  title={showDownloadNotice ? 'Upgrade subscription to download CSV' : undefined}
+                <button onClick={canCSV ? handleDownloadCSV : undefined}
+                  disabled={!canCSV}
+                  title={!canCSV ? 'Upgrade to Standard or Pro to download CSV' : undefined}
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border transition
-                    ${showDownloadNotice
-                      ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-60'
+                    ${!canCSV
+                      ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-70'
                       : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'}`}>
                   <Download size={14} /> Download CSV
+                  {!canCSV && <span className="ml-1 text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
                 </button>
-                <button onClick={() => !showSMSNotice && setShowSMS(true)}
-                  disabled={showSMSNotice}
-                  title={showSMSNotice ? 'Upgrade subscription to send SMS' : undefined}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border transition
-                    ${showSMSNotice
-                      ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-60'
-                      : 'border-indigo-200 text-indigo-600 hover:bg-indigo-50'}`}>
-                  <MessageSquare size={14} /> Send SMS
-                </button>
+                {canSMS && (
+                  <button onClick={() => setShowSMS(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition">
+                    <MessageSquare size={14} /> Send SMS
+                  </button>
+                )}
                 {isPublished ? (
-                  <button onClick={handleUnpublish} disabled={publishLoading || showDownloadNotice}
-                    title={showDownloadNotice ? 'Upgrade subscription to manage publication' : undefined}
+                  <button onClick={handleUnpublish} disabled={publishLoading || !canDownload}
+                    title={!canDownload ? 'Upgrade to Standard or Pro to manage publication' : undefined}
                     className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg transition
-                      ${showDownloadNotice
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                      ${!canDownload
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-70'
                         : 'bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-60'}`}>
                     {publishLoading ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />} Unpublish
+                    {!canDownload && <span className="ml-1 text-xs bg-slate-300 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
                   </button>
                 ) : (
-                  <button onClick={() => !showDownloadNotice && setShowPublish(true)}
-                    disabled={showDownloadNotice}
-                    title={showDownloadNotice ? 'Upgrade subscription to publish results' : undefined}
+                  <button onClick={() => canDownload && setShowPublish(true)}
+                    disabled={!canDownload}
+                    title={!canDownload ? 'Upgrade to Standard or Pro to publish results' : undefined}
                     className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg transition
-                      ${showDownloadNotice
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                      ${!canDownload
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-70'
                         : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
                     <Globe size={14} /> Publish Results
+                    {!canDownload && <span className="ml-1 text-xs bg-slate-300 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
                   </button>
                 )}
               </>
@@ -560,7 +564,8 @@ export default function ResultsPage() {
             {!isPrimary && divGenderSummary && divGenderSummary.length > 0 && (
               <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-700/20">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">Division Breakdown by Gender</p>
-                <table className="text-xs">
+                <div className="overflow-x-auto">
+                <table className="text-xs min-w-72">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-600">
                       <th className="text-left pr-8 pb-1 font-semibold text-slate-500 uppercase">Division</th>
@@ -590,6 +595,7 @@ export default function ResultsPage() {
                     </tr>
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 

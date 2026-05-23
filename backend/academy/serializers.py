@@ -50,7 +50,7 @@ class StreamSerializer(serializers.ModelSerializer):
 class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
-        fields = ['id', 'school', 'name', 'code']
+        fields = ['id', 'school', 'name', 'code', 'counts_in_division']
         read_only_fields = ['id']
 
 

@@ -172,7 +172,8 @@ export default function StudentsPage() {
             ) : filtered.length === 0 ? (
               <EmptyState message={search ? 'No results found.' : 'No students yet. Register your first student!'} />
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-160">
                 <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     {['Name', 'Gender', 'Class', 'Parent Phone', 'Adm. No.', 'Actions'].map(h => (
@@ -200,6 +201,7 @@ export default function StudentsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </>

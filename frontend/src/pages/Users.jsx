@@ -215,7 +215,8 @@ export default function Users() {
               {search ? 'No results for your search.' : 'No staff members yet. Add your first one!'}
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-140">
               <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   {['Name', 'Email', 'Role', 'Status', 'Actions'].map(h => (
@@ -279,6 +280,7 @@ export default function Users() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

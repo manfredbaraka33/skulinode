@@ -2,7 +2,7 @@
  * SubjectsPage — Admin manages subjects and assigns them to teachers+streams.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Plus, Pencil, Trash2, Loader2, UserCheck, Link as LinkIcon } from 'lucide-react';
+import { BookOpen, Plus, Pencil, Trash2, Loader2, UserCheck, Link as LinkIcon, CheckCircle2, MinusCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +17,7 @@ export default function SubjectsPage() {
   const [toast, showToast, clearToast] = useToast();
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [schoolType, setSchoolType] = useState(null);
   const [editSubject, setEditSubject] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [assignSubject, setAssignSubject] = useState(null); // open assignment modal
@@ -24,8 +25,12 @@ export default function SubjectsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/academy/subjects/');
-      setSubjects(res.data.results ?? res.data);
+      const [subRes, schoolRes] = await Promise.all([
+        apiClient.get('/academy/subjects/'),
+        apiClient.get('/school/'),
+      ]);
+      setSubjects(subRes.data.results ?? subRes.data);
+      setSchoolType(schoolRes.data.school_type ?? null);
     } catch { showToast('Failed to load subjects.', 'error'); }
     finally { setLoading(false); }
   }, []);
@@ -47,6 +52,7 @@ export default function SubjectsPage() {
 
       {showAdd && (
         <SubjectFormModal
+          schoolType={schoolType}
           onClose={() => setShowAdd(false)}
           onSuccess={() => { setShowAdd(false); load(); showToast('Subject added.'); }}
           onError={msg => showToast(msg, 'error')}
@@ -55,6 +61,7 @@ export default function SubjectsPage() {
       {editSubject && (
         <SubjectFormModal
           subject={editSubject}
+          schoolType={schoolType}
           onClose={() => setEditSubject(null)}
           onSuccess={() => { setEditSubject(null); load(); showToast('Subject updated.'); }}
           onError={msg => showToast(msg, 'error')}
@@ -87,10 +94,11 @@ export default function SubjectsPage() {
         ) : subjects.length === 0 ? (
           <EmptyState message="No subjects yet. Add your first subject!" />
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-80">
             <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
               <tr>
-                {['Subject Name', 'Code', 'Actions'].map(h => (
+                {['Subject Name', 'Code', ...(schoolType === 'ADVANCED' ? ['Division'] : []), 'Actions'].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -100,6 +108,14 @@ export default function SubjectsPage() {
                 <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
                   <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{s.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">{s.code}</td>
+                  {schoolType === 'ADVANCED' && (
+                    <td className="px-4 py-3">
+                      {s.counts_in_division
+                        ? <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full"><CheckCircle2 size={11} /> Counts</span>
+                        : <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-700 dark:text-slate-400 px-2 py-0.5 rounded-full"><MinusCircle size={11} /> Subsidiary</span>
+                      }
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
                       <button title="Assign to teacher" onClick={() => setAssignSubject(s)}
@@ -120,17 +136,21 @@ export default function SubjectsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function SubjectFormModal({ subject, onClose, onSuccess, onError }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: subject ? { name: subject.name, code: subject.code } : {},
+function SubjectFormModal({ subject, schoolType, onClose, onSuccess, onError }) {
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm({
+    defaultValues: subject
+      ? { name: subject.name, code: subject.code, counts_in_division: subject.counts_in_division ?? true }
+      : { counts_in_division: true },
   });
   const { auth } = useAuth();
+  const countsInDiv = watch('counts_in_division');
 
   async function onSubmit(data) {
     try {
@@ -164,6 +184,29 @@ function SubjectFormModal({ subject, onClose, onSuccess, onError }) {
             {...register('code', { required: 'Required' })} />
           <FieldError message={errors.code?.message} />
         </div>
+        {schoolType === 'ADVANCED' && (
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600">
+            <button
+              type="button"
+              onClick={() => setValue('counts_in_division', !countsInDiv)}
+              className={`mt-0.5 w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center transition ${
+                countsInDiv
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500'
+              }`}
+              aria-label="Toggle counts in division"
+            >
+              {countsInDiv && <CheckCircle2 size={12} />}
+            </button>
+            <input type="hidden" {...register('counts_in_division')} />
+            <div>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Counts in Division</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Uncheck for subsidiary subjects like <span className="font-mono font-semibold">GS</span> and <span className="font-mono font-semibold">BAM</span> that do not count in the A-Level division calculation.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex gap-3 justify-end pt-1">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={isSubmitting}

@@ -439,13 +439,13 @@ class ResultsView(APIView):
                 excluded = (student.id, subj.id) in exclusions
                 if excluded:
                     subj_data[subj.name] = {'score': None, 'grade': '-', 'excluded': True}
-                    subject_results.append({'score': None, 'excluded': True})
+                    subject_results.append({'score': None, 'excluded': True, 'counts_in_division': subj.counts_in_division})
                     continue
                 mark = marks_map.get((student.id, subj.id))
                 score = float(mark.score) if mark and mark.score is not None else None
                 grade = get_grade_from_configs(score, grade_configs) if score is not None else '-'
                 subj_data[subj.name] = {'score': score, 'grade': grade, 'excluded': False}
-                subject_results.append({'score': score, 'excluded': False})
+                subject_results.append({'score': score, 'excluded': False, 'counts_in_division': subj.counts_in_division})
 
             summary = compute_student_summary(school_type, subject_results, grade_configs)
 
@@ -759,6 +759,7 @@ class SendSMSView(APIView):
                            marks_map[(student.id, subj.id)].score is not None
                         else None,
                     'excluded': (student.id, subj.id) in exclusions,
+                    'counts_in_division': subj.counts_in_division,
                 }
                 for subj in subjects
             ]

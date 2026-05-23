@@ -6,10 +6,10 @@ from core.models import CustomUser, School
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ['name', 'registration_number', 'school_type', 'region', 'is_active', 'is_paid', 'is_paid_without_sms', 'subscription_expires_at']
-    list_filter = ['school_type', 'region', 'is_active', 'is_paid', 'is_paid_without_sms']
+    list_display = ['name', 'registration_number', 'school_type', 'region', 'is_active', 'plan', 'subscription_expires_at']
+    list_filter = ['school_type', 'region', 'is_active', 'plan']
     search_fields = ['name', 'registration_number']
-    list_editable = ['is_paid', 'is_paid_without_sms', 'subscription_expires_at']
+    list_editable = ['plan', 'subscription_expires_at']
     list_display_links = ['name']
 
 

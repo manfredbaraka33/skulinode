@@ -90,6 +90,11 @@ class Subject(TenantModel):
         verbose_name='Subject Code',
         help_text='e.g. PHY, KIS',
     )
+    counts_in_division = models.BooleanField(
+        default=True,
+        verbose_name='Counts in Division',
+        help_text='Uncheck for subsidiary subjects (e.g. GS, BAM) that do not count in A-Level division.',
+    )
 
     class Meta:
         ordering = ['school', 'name']

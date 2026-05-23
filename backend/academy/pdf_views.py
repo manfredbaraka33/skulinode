@@ -66,12 +66,12 @@ G_RED       = colors.HexColor('#b91c1c')
 
 GRADE_COLORS = {
     'A': G_GREEN, 'B': G_TEAL, 'C': G_AMBER,
-    'D': G_ORANGE, 'E': G_PURPLE, 'F': G_RED,
+    'D': G_ORANGE, 'E': G_PURPLE, 'S': colors.HexColor('#4338ca'), 'F': G_RED,
     '-': SLATE_GREY,
 }
 GRADE_HEX = {
     'A': '#166534', 'B': '#0f766e', 'C': '#92400e',
-    'D': '#c2410c', 'E': '#7e22ce', 'F': '#b91c1c', '-': '#64748b',
+    'D': '#c2410c', 'E': '#7e22ce', 'S': '#4338ca', 'F': '#b91c1c', '-': '#64748b',
 }
 GRADE_COMMENT = {
     'A': 'Excellent', 'B': 'Very Good', 'C': 'Good', 'D': 'Average',
@@ -223,13 +223,13 @@ def _fetch_results_data(request):
             excluded = (student.id, subj.id) in exclusions
             if excluded:
                 subj_data[subj.name] = {'score': None, 'grade': '-', 'excluded': True}
-                subject_results.append({'score': None, 'excluded': True})
+                subject_results.append({'score': None, 'excluded': True, 'counts_in_division': subj.counts_in_division})
                 continue
             mark = marks_map.get((student.id, subj.id))
             score = float(mark.score) if mark and mark.score is not None else None
             grade = get_grade_from_configs(score, grade_configs) if score is not None else '-'
             subj_data[subj.name] = {'score': score, 'grade': grade, 'excluded': False}
-            subject_results.append({'score': score, 'excluded': False})
+            subject_results.append({'score': score, 'excluded': False, 'counts_in_division': subj.counts_in_division})
         summary = compute_student_summary(school_type, subject_results, grade_configs)
         rows.append({
             'student_id': student.id,
