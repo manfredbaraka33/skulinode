@@ -104,11 +104,12 @@ export default function SchoolSettingsPage() {
         payload = new FormData();
         const fields = ['name', 'school_type', 'region', 'district', 'ward', 'phone', 'email', 'website', 'po_box'];
         fields.forEach(f => { if (school[f] != null) payload.append(f, school[f]); });
+        payload.append('show_logo', school.show_logo ? 'true' : 'false');
         payload.append('logo', logoFile);
         config = { headers: { 'Content-Type': 'multipart/form-data' } };
       } else {
-        const { name, school_type, region, district, ward, phone, email, website, po_box } = school;
-        payload = { name, school_type, region, district, ward, phone, email, website, po_box };
+        const { name, school_type, region, district, ward, phone, email, website, po_box, show_logo } = school;
+        payload = { name, school_type, region, district, ward, phone, email, website, po_box, show_logo };
       }
 
       const res = await apiClient.patch('/school/', payload, config);
@@ -254,6 +255,24 @@ export default function SchoolSettingsPage() {
                 ? <p className="mt-2 flex items-center gap-1 text-xs text-red-600"><span>⚠</span> {logoError}</p>
                 : <FieldError message={errors.logo?.[0]} />
               }
+              <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!!school.show_logo}
+                  onClick={() => handleChange('show_logo', !school.show_logo)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                    school.show_logo ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    school.show_logo ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
+                <span className="text-sm text-slate-700 dark:text-slate-300">
+                  Show logo on documents &amp; reports
+                </span>
+              </div>
             </div>
           </div>
         </Section>

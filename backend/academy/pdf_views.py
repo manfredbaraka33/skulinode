@@ -302,9 +302,11 @@ def _fetch_results_data(request):
 def _logo_image(school, size_mm=30):
     """Return an Image flowable for the school logo, or None if unavailable.
 
-    Tries local file path first (non-Cloudinary), then falls back to downloading
-    from the storage URL (Cloudinary / remote storage).
+    Returns None when show_logo is False, when there is no logo saved, or when
+    the image cannot be loaded from the local filesystem or remote storage.
     """
+    if not getattr(school, 'show_logo', True):
+        return None
     if not school.logo or not school.logo.name:
         return None
     # 1. Try local file path (works for non-Cloudinary / DEBUG setups)
@@ -367,18 +369,25 @@ def _school_header(school, title, usable_width, compact=False):
 
     logo_img = _logo_image(school, size_mm=26 if compact else 40)
     if logo_img is None:
-        initial = school.name[0].upper() if school.name else 'S'
-        logo_cell = Paragraph(
-            f'<font size="26" color="#1e3a5f"><b>{initial}</b></font>',
-            ParagraphStyle('li', alignment=TA_CENTER, fontName='Helvetica-Bold', fontSize=26),
+        # No logo (or show_logo=False): single-column layout, text spans full width
+        tbl = Table(
+            [[[name_p, loc_p, contact_p, reg_p, title_p]]],
+            colWidths=[usable_width],
         )
-    else:
-        logo_cell = logo_img
+        tbl.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+            ('LINEBELOW', (0, 0), (-1, 0), 2.5, NAVY),
+            ('LINEBELOW', (0, 0), (-1, 0), 1.5, GOLD),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 4 if compact else 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 2 if compact else 4),
+        ]))
+        return tbl
 
     col1_w = (36 if compact else 50) * mm
     col2_w = usable_width - col1_w
     tbl = Table(
-        [[logo_cell, [name_p, loc_p, contact_p, reg_p, title_p]]],
+        [[logo_img, [name_p, loc_p, contact_p, reg_p, title_p]]],
         colWidths=[col1_w, col2_w],
     )
     tbl.setStyle(TableStyle([

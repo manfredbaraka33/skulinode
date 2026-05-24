@@ -15,12 +15,12 @@ urlpatterns = [
     path('api/v1/', include('api.urls')),
 ]
 
-# Serve local media files regardless of DEBUG setting.
-# In production behind nginx/Caddy, the web server handles /media/ before Django.
-# On platforms without a dedicated media proxy (e.g. Railway, Render), Django serves it.
-# Cloudinary uploads bypass this entirely — their URLs are absolute Cloudinary links.
-if not settings.USE_CLOUDINARY:
-    urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
-    ]
+# Always serve local media files from MEDIA_ROOT.
+# When Cloudinary is active, new uploads return absolute Cloudinary URLs so this
+# route is only hit for files that were saved locally before Cloudinary was enabled.
+# On platforms without a dedicated media proxy (Railway, Render, etc.) Django serves it;
+# behind nginx/Caddy, the web server intercepts /media/ before Django.
+urlpatterns += [
+    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+]
 
