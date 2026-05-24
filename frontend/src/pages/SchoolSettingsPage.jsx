@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Save, Loader2, Building2, Phone, Globe, MapPin, Upload } from 'lucide-react';
+import { Settings, Save, Loader2, Building2, Phone, Globe, MapPin, Upload, AlertTriangle } from 'lucide-react';
 import { PageHeader, Toast, FieldError, useToast } from '../components/ui';
 import apiClient from '../api/axios';
 
@@ -71,7 +71,7 @@ export default function SchoolSettingsPage() {
     if (!file) return;
 
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    const MAX_SIZE_MB = 5;
+    const MAX_SIZE_MB = 1;
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       setLogoError('Unsupported file type. Please upload a JPEG, PNG, WebP, or GIF image.');
@@ -274,10 +274,14 @@ export default function SchoolSettingsPage() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                  Upload a school crest or logo. It will appear on report cards.<br />
-                  Accepted: JPEG, PNG, WebP, GIF &mdash; max 5 MB. Recommended: square, at least 200×200 px.
-                </p>
+                {/* Upfront size warning — always visible before any file is chosen */}
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/20 px-3 py-2 mb-3">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                    Maximum file size is <strong>1 MB</strong>. Accepted formats: JPEG, PNG, WebP, GIF.<br />
+                    Recommended: square image, at least 200&times;200 px.
+                  </p>
+                </div>
                 <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleLogoChange} className="hidden" />
                 <button
                   onClick={() => logoRef.current?.click()}
