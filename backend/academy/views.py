@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from academy.permissions import IsSchoolPaid, IsSchoolPaidOrDownloadOnly
+from academy.combined import build_combined_results_data, CombinedResultsValidationError
 
 from academy.grading import (
     get_division, get_grade, get_gpa,
@@ -556,6 +557,42 @@ class SubjectAnalyticsView(APIView):
             'pass_rate': pass_rate,
             'total_scored': count,
         })
+
+
+class CombinedResultsView(APIView):
+    """
+    POST /api/v1/academy/results/combined/
+    Body: {
+      stream,
+      assessments: [{assessment_id, weight}, ...],
+      treat_missing_as_zero: false
+    }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        is_admin = request.user.role == 'ADMIN' or 'ADMIN' in (request.user.roles or [])
+        if not is_admin:
+            return Response({'error': 'Only admins can generate combined results.'}, status=403)
+
+        stream_id = request.data.get('stream')
+        assessments = request.data.get('assessments')
+        treat_missing_as_zero = bool(request.data.get('treat_missing_as_zero', False))
+
+        if not stream_id:
+            return Response({'error': 'stream is required.'}, status=400)
+
+        try:
+            payload = build_combined_results_data(
+                school=school_of(request),
+                stream_id=stream_id,
+                assessment_weights=assessments,
+                treat_missing_as_zero=treat_missing_as_zero,
+            )
+        except CombinedResultsValidationError as exc:
+            return Response({'error': str(exc)}, status=400)
+
+        return Response(payload)
 
 
 # ── Submission stats ──────────────────────────────────────────────────────────

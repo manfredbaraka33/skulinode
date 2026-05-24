@@ -40,6 +40,11 @@ export default function ReportCardsPage() {
   const [school, setSchool]           = useState(null);
   const [stream, setStream]           = useState('');
   const [assessment, setAssessment]   = useState('');
+  const [mode, setMode]               = useState('single');
+  const [combinedSelection, setCombinedSelection] = useState({});
+  const [showMissingModal, setShowMissingModal] = useState(false);
+  const [missingPayload, setMissingPayload] = useState([]);
+  const [treatMissingAsZero, setTreatMissingAsZero] = useState(false);
   const [data, setData]               = useState(null);
   const [loading, setLoading]         = useState(false);
   const [idx, setIdx]                 = useState(0);
@@ -57,14 +62,43 @@ export default function ReportCardsPage() {
     }).catch(() => {});
   }, []);
 
+  const selectedCombinedAssessments = assessments
+    .filter(a => combinedSelection[a.id]?.selected)
+    .map(a => ({
+      assessment_id: a.id,
+      name: a.name,
+      academic_year: a.academic_year,
+      weight: Number(combinedSelection[a.id]?.weight || 0),
+    }));
+  const combinedWeightTotal = selectedCombinedAssessments
+    .reduce((acc, item) => acc + (Number.isFinite(item.weight) ? item.weight : 0), 0);
+
   async function loadData() {
-    if (!stream || !assessment) return;
+    if (!stream) return;
     setLoading(true);
     try {
-      const r = await apiClient.get(`/academy/results/?assessment=${assessment}&stream=${stream}`);
-      setData(r.data);
+      if (mode === 'combined') {
+        const r = await apiClient.post('/academy/results/combined/', {
+          stream,
+          assessments: selectedCombinedAssessments.map(a => ({ assessment_id: a.assessment_id, weight: a.weight })),
+          treat_missing_as_zero: false,
+        });
+        if (r.data?.requires_confirmation) {
+          setMissingPayload(r.data.missing_marks ?? []);
+          setShowMissingModal(true);
+          setData(null);
+          return;
+        }
+        setTreatMissingAsZero(false);
+        setData(r.data);
+      } else {
+        const r = await apiClient.get(`/academy/results/?assessment=${assessment}&stream=${stream}`);
+        setData(r.data);
+      }
       setIdx(0);
-    } catch { showToast('Failed to load data.', 'error'); }
+    } catch (e) {
+      showToast(e.response?.data?.error ?? 'Failed to load data.', 'error');
+    }
     finally { setLoading(false); }
   }
 
@@ -74,17 +108,69 @@ export default function ReportCardsPage() {
   })();
   const selectedAssessmentName = assessments.find(a => String(a.id) === String(assessment))?.name ?? '';
 
+  function toggleCombinedAssessment(assessmentId, selected) {
+    setCombinedSelection(prev => ({
+      ...prev,
+      [assessmentId]: {
+        selected,
+        weight: selected ? (prev[assessmentId]?.weight || '') : '',
+      },
+    }));
+    setData(null);
+  }
+
+  function updateCombinedWeight(assessmentId, weight) {
+    setCombinedSelection(prev => ({
+      ...prev,
+      [assessmentId]: {
+        selected: true,
+        weight,
+      },
+    }));
+    setData(null);
+  }
+
+  async function continueWithMissingAsZero() {
+    if (!stream) return;
+    setShowMissingModal(false);
+    setLoading(true);
+    try {
+      const r = await apiClient.post('/academy/results/combined/', {
+        stream,
+        assessments: selectedCombinedAssessments.map(a => ({ assessment_id: a.assessment_id, weight: a.weight })),
+        treat_missing_as_zero: true,
+      });
+      setTreatMissingAsZero(true);
+      setData(r.data);
+      setIdx(0);
+    } catch {
+      showToast('Failed to load combined data.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function downloadPDF(singleStudentId = null) {
     if (!data) return;
     setPdfLoading(true);
     try {
-      const payload = { assessment, stream };
+      const payload = mode === 'combined'
+        ? {
+          stream,
+          assessments: selectedCombinedAssessments.map(a => ({ assessment_id: a.assessment_id, weight: a.weight })),
+          treat_missing_as_zero: treatMissingAsZero,
+        }
+        : { assessment, stream };
       if (singleStudentId) payload.student_id = singleStudentId;
-      const r = await apiClient.post('/academy/report-cards/pdf/', payload, { responseType: 'blob' });
+      const r = await apiClient.post(
+        mode === 'combined' ? '/academy/report-cards/combined/pdf/' : '/academy/report-cards/pdf/',
+        payload,
+        { responseType: 'blob' },
+      );
       const url = window.URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
       const filename = singleStudentId
         ? `report_card_${singleStudentId}.pdf`
-        : `report_cards_${stream}_${assessment}.pdf`;
+        : mode === 'combined' ? `report_cards_combined_${stream}.pdf` : `report_cards_${stream}_${assessment}.pdf`;
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
@@ -156,21 +242,81 @@ export default function ReportCardsPage() {
             {streams.map(s => <option key={s.id} value={s.id}>{s.display_label}</option>)}
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Assessment</label>
-          <select
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
-            value={assessment} onChange={e => { setAssessment(e.target.value); setData(null); }}>
-            <option value="">Select assessment...</option>
-            {assessments.map(a => <option key={a.id} value={a.id}>{a.name} ({a.academic_year})</option>)}
-          </select>
-        </div>
-        {stream && assessment && (
-          <div className="flex items-end">
-            <button onClick={loadData}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
-              Generate
+        <div className="flex items-end">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 dark:bg-slate-800 dark:border-slate-600">
+            <button
+              onClick={() => { setMode('single'); setData(null); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${mode === 'single' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
+              Single Assessment
             </button>
+            <button
+              onClick={() => { setMode('combined'); setData(null); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${mode === 'combined' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
+              Combined
+            </button>
+          </div>
+        </div>
+        {mode === 'single' ? (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Assessment</label>
+              <select
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
+                value={assessment} onChange={e => { setAssessment(e.target.value); setData(null); }}>
+                <option value="">Select assessment...</option>
+                {assessments.map(a => <option key={a.id} value={a.id}>{a.name} ({a.academic_year})</option>)}
+              </select>
+            </div>
+            {stream && assessment && (
+              <div className="flex items-end">
+                <button onClick={loadData}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+                  Generate
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="w-full rounded-xl border border-slate-200 bg-white p-4 dark:bg-slate-800 dark:border-slate-700">
+            <div className="flex flex-wrap gap-3">
+              {assessments.map(a => {
+                const selected = Boolean(combinedSelection[a.id]?.selected);
+                return (
+                  <label key={a.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={e => toggleCombinedAssessment(a.id, e.target.checked)}
+                    />
+                    <span>{a.name} ({a.academic_year})</span>
+                    {selected && (
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={combinedSelection[a.id]?.weight ?? ''}
+                        onChange={e => updateCombinedWeight(a.id, e.target.value)}
+                        className="w-20 rounded-md border border-slate-200 px-2 py-1 text-xs dark:bg-slate-700 dark:border-slate-600"
+                        placeholder="weight"
+                      />
+                    )}
+                    {selected && <span className="text-xs text-slate-500">%</span>}
+                  </label>
+                );
+              })}
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <span className={`text-sm font-semibold ${combinedWeightTotal === 100 ? 'text-green-600' : 'text-amber-600'}`}>
+                Total Weight: {combinedWeightTotal}%
+              </span>
+              <button
+                onClick={loadData}
+                disabled={!stream || selectedCombinedAssessments.length < 2 || combinedWeightTotal !== 100}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50">
+                Generate
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -202,11 +348,44 @@ export default function ReportCardsPage() {
                 subjects={subjects}
                 school={school}
                 schoolType={data?.school_type}
-                assessmentName={selectedAssessmentName}
+                assessmentName={mode === 'combined' ? 'Combined' : selectedAssessmentName}
+                assessments={data?.assessments ?? []}
+                mode={mode}
                 streamLabel={selectedStreamLabel}
                 isVisible={i === idx}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {showMissingModal && (
+        <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">Missing Marks Detected</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+              Some students are missing marks in selected assessments.
+            </p>
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+              {missingPayload.map(item => (
+                <div key={item.assessment_id} className="text-xs text-amber-900">
+                  <p className="font-semibold">{item.assessment_name}</p>
+                  <p>{item.students.join(', ')}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowMissingModal(false)}
+                className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+                Cancel and fix missing marks first
+              </button>
+              <button
+                onClick={continueWithMissingAsZero}
+                className="px-4 py-2 text-sm rounded-lg bg-amber-600 text-white hover:bg-amber-700">
+                Treat missing marks as 0 and continue
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -215,12 +394,17 @@ export default function ReportCardsPage() {
 }
 
 /* ---- Professional Report Card ---- */
-function ReportCard({ student, subjects, school, schoolType, assessmentName, streamLabel, isVisible }) {
+function ReportCard({ student, subjects, school, schoolType, assessmentName, assessments, mode, streamLabel, isVisible }) {
   const isPrimary = schoolType === 'PRIMARY';
   const scoredSubjects = subjects.filter(s => {
     const d = student.subjects[s];
-    return d && !d.excluded && d.score !== null && d.score !== undefined;
+    if (!d || d.excluded) return false;
+    if (mode === 'combined') return d.final_score !== null && d.final_score !== undefined;
+    return d.score !== null && d.score !== undefined;
   });
+  const combinedLabel = mode === 'combined'
+    ? assessments.map(a => `${a.name} (${a.weight}%)`).join(' | ')
+    : assessmentName;
 
   return (
     <div
@@ -274,7 +458,7 @@ function ReportCard({ student, subjects, school, schoolType, assessmentName, str
         {[
           ['Student Name', student.display_name],
           ['Class / Stream', streamLabel],
-          ['Assessment', assessmentName],
+          ['Assessment', combinedLabel],
           student.admission_number ? ['Adm. No.', student.admission_number] : null,
           student.rank ? ['Class Position', `${student.rank} / ${student.total_students}`] : null,
         ].filter(Boolean).map(([label, value]) => (
@@ -290,7 +474,16 @@ function ReportCard({ student, subjects, school, schoolType, assessmentName, str
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: '#1e3a5f' }}>
-              {['#', 'Subject', 'Marks', 'Out Of', 'Grade', 'Remarks'].map((h, i) => (
+              {[
+                '#',
+                'Subject',
+                ...(mode === 'combined'
+                  ? assessments.map(a => `${a.name} (${a.weight}%)`)
+                  : ['Marks', 'Out Of']),
+                ...(mode === 'combined' ? ['Final'] : []),
+                'Grade',
+                'Remarks',
+              ].map((h, i) => (
                 <th key={h} style={{ padding: '6px 8px', color: '#fff', textAlign: i <= 1 ? 'left' : 'center', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>{h}</th>
               ))}
             </tr>
@@ -298,26 +491,66 @@ function ReportCard({ student, subjects, school, schoolType, assessmentName, str
           <tbody>
             {subjects.map((subj, rowIdx) => {
               const d = student.subjects[subj];
-              if (!d || d.excluded) return null;
-              const g = d.grade ?? gradeFromScore(d.score);
+              if (!d || d.excluded || d.excluded_for_no_marks) return null;
+              const g = mode === 'combined'
+                ? (d.grade ?? gradeFromScore(d.final_score))
+                : (d.grade ?? gradeFromScore(d.score));
               const gc = GRADE_COLOR[g] ?? { bg: '#64748b', text: '#fff' };
               return (
                 <tr key={subj} style={{ background: rowIdx % 2 === 0 ? '#fff' : '#f8faff' }}>
                   <td style={{ padding: '4px 8px', color: '#94a3b8', borderBottom: '1px solid #e2e8f0', width: '28px' }}>{rowIdx + 1}</td>
                   <td style={{ padding: '4px 8px', fontWeight: '500', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>{subj}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'center', fontFamily: '"Courier New",monospace', fontWeight: '700', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>{d.score ?? '-'}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'center', color: '#94a3b8', borderBottom: '1px solid #e2e8f0' }}>100</td>
+                  {mode === 'combined' ? assessments.map(a => {
+                    const score = d.assessment_scores?.[a.id];
+                    return (
+                      <td key={a.id} style={{ padding: '4px 8px', textAlign: 'center', fontFamily: '"Courier New",monospace', fontWeight: '700', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>
+                        {score == null ? '0' : score}
+                      </td>
+                    );
+                  }) : (
+                    <>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', fontFamily: '"Courier New",monospace', fontWeight: '700', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>{d.score ?? '-'}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', color: '#94a3b8', borderBottom: '1px solid #e2e8f0' }}>100</td>
+                    </>
+                  )}
+                  {mode === 'combined' && (
+                    <td style={{ padding: '4px 8px', textAlign: 'center', fontFamily: '"Courier New",monospace', fontWeight: '700', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>
+                      {d.final_score == null ? '-' : Number(d.final_score).toFixed(2)}
+                    </td>
+                  )}
                   <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
                     <span style={{ background: gc.bg, color: gc.text, padding: '2px 10px', borderRadius: '4px', fontWeight: '700', display: 'inline-block' }}>{g}</span>
                   </td>
-                  <td style={{ padding: '4px 8px', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>{GRADE_COMMENT[g] ?? '-'}</td>
+                  <td style={{ padding: '4px 8px', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
+                    {mode === 'combined' ? (d.remarks ?? '-') : (GRADE_COMMENT[g] ?? '-')}
+                  </td>
                 </tr>
               );
             })}
             <tr style={{ background: '#1e3a5f', color: '#fff', fontWeight: '700' }}>
-              <td colSpan={2} style={{ padding: '6px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</td>
-              <td style={{ padding: '6px 8px', textAlign: 'center', fontFamily: '"Courier New",monospace' }}>{student.total_score ?? '-'}</td>
-              <td style={{ padding: '6px 8px', textAlign: 'center', opacity: 0.7 }}>{student.total_possible ?? scoredSubjects.length * 100}</td>
+              <td colSpan={2} style={{ padding: '6px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {mode === 'combined' ? 'Average' : 'Total'}
+              </td>
+              {mode === 'combined' ? (
+                <>
+                {assessments.map(a => {
+                  const rawAverage = student.assessment_averages?.[a.id]?.raw_average;
+                  return (
+                    <td key={a.id} style={{ padding: '6px 8px', textAlign: 'center', fontFamily: '"Courier New",monospace' }}>
+                      {rawAverage == null ? '-' : Number(rawAverage).toFixed(2)}
+                    </td>
+                  );
+                })}
+                <td style={{ padding: '6px 8px', textAlign: 'center', fontFamily: '"Courier New",monospace' }}>
+                  {student.average == null ? '-' : Number(student.average).toFixed(2)}
+                </td>
+                </>
+              ) : (
+                <>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', fontFamily: '"Courier New",monospace' }}>{student.total_score ?? '-'}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', opacity: 0.7 }}>{student.total_possible ?? scoredSubjects.length * 100}</td>
+                </>
+              )}
               {isPrimary ? (
                 <>
                   <td style={{ padding: '6px 8px', textAlign: 'center' }}>
@@ -325,12 +558,18 @@ function ReportCard({ student, subjects, school, schoolType, assessmentName, str
                       <span style={{ background: (GRADE_COLOR[student.grade] ?? { bg: '#64748b' }).bg, color: '#fff', padding: '2px 10px', borderRadius: '4px', fontWeight: '700', display: 'inline-block' }}>{student.grade}</span>
                     ) : '-'}
                   </td>
-                  <td style={{ padding: '6px 8px' }}>Avg: {student.average ?? '-'}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    {mode === 'combined' ? (student.grade_remarks ?? '-') : `Avg: ${student.average ?? '-'}`}
+                  </td>
                 </>
               ) : (
                 <>
-                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>Avg: {student.average ?? '-'}</td>
-                  <td style={{ padding: '6px 8px' }}>Pts: {student.points ?? '-'} | Div: {student.division ?? '-'}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>{mode === 'combined' ? (student.grade ?? '-') : `Avg: ${student.average ?? '-'}`}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    {mode === 'combined'
+                      ? `Pts: ${student.points ?? '-'} | Div: ${student.division ?? '-'}`
+                      : `Pts: ${student.points ?? '-'} | Div: ${student.division ?? '-'}`}
+                  </td>
                 </>
               )}
             </tr>

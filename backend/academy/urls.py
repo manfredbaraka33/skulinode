@@ -1,10 +1,17 @@
 from django.urls import path
 
-from academy.pdf_views import MarkSheetPDFView, ReportCardsPDFView, ResultsPDFView
+from academy.pdf_views import (
+    CombinedReportCardsPDFView,
+    CombinedResultsPDFView,
+    MarkSheetPDFView,
+    ReportCardsPDFView,
+    ResultsPDFView,
+)
 from academy.views import (
     AssessmentDetailView,
     AssessmentListCreateView,
     AssessmentToggleView,
+    CombinedResultsView,
     ClassLevelDetailView,
     ClassLevelListCreateView,
     ClassRoomDetailView,
@@ -75,6 +82,7 @@ urlpatterns = [
 
     # Results & analytics
     path('results/',                    ResultsView.as_view(),                            name='results'),
+    path('results/combined/',           CombinedResultsView.as_view(),                    name='results_combined'),
     path('analytics/',                  SubjectAnalyticsView.as_view(),                   name='analytics'),
     path('submission-stats/',           SubmissionStatsView.as_view(),                    name='submission_stats'),
     path('publish/',                    PublishResultsView.as_view(),                     name='publish_results'),
@@ -87,7 +95,9 @@ urlpatterns = [
 
     # PDF generation (ReportLab backend)
     path('results/pdf/',                ResultsPDFView.as_view(),                         name='results_pdf'),
+    path('results/combined/pdf/',       CombinedResultsPDFView.as_view(),                 name='results_combined_pdf'),
     path('marks/pdf/',                  MarkSheetPDFView.as_view(),                       name='marksheet_pdf'),
     path('report-cards/pdf/',           ReportCardsPDFView.as_view(),                     name='report_cards_pdf'),
+    path('report-cards/combined/pdf/',  CombinedReportCardsPDFView.as_view(),             name='report_cards_combined_pdf'),
 ]
 

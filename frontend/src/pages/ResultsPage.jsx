@@ -57,6 +57,34 @@ function buildAnalytics(subjects, students, schoolType) {
   });
 }
 
+/** Compute per-subject analytics from combined-mode student rows. */
+function buildCombinedAnalytics(subjects, students, schoolType) {
+  const gradeSet = schoolType === 'ADVANCED' ? ['A','B','C','D','E','F'] : ['A','B','C','D','F'];
+  const gpaMap = schoolType === 'ADVANCED' ? GPA_MAP_ADV : GPA_MAP_ORD;
+  return subjects.map(subj => {
+    const scores = [];
+    const gc = Object.fromEntries(gradeSet.map(g => [g, 0]));
+    let gpaSum = 0;
+    students.forEach(st => {
+      const d = st.subjects?.[subj];
+      if (!d || d.excluded || d.excluded_for_no_marks || d.final_score == null) return;
+      const score = Number(d.final_score);
+      const grade = d.grade ?? '-';
+      scores.push(score);
+      if (grade in gc) gc[grade]++;
+      gpaSum += (gpaMap[grade] ?? 5);
+    });
+    const sat  = scores.length;
+    const sum  = scores.reduce((a, b) => a + b, 0);
+    const avg  = sat ? (sum / sat).toFixed(1) : '-';
+    const high = sat ? Math.max(...scores).toFixed(1) : '-';
+    const low  = sat ? Math.min(...scores).toFixed(1) : '-';
+    const pass = sat - (gc.F ?? 0);
+    const gpa  = sat ? (gpaSum / sat).toFixed(2) : null;
+    return { subj, sat, gc, gradeSet, avg, high, low, passRate: sat ? `${Math.round((pass / sat) * 100)}%` : '-', gpa };
+  });
+}
+
 function gpaColor(gpa) {
   if (gpa === null || gpa === undefined) return 'text-slate-400';
   const g = parseFloat(gpa);
@@ -98,6 +126,11 @@ export default function ResultsPage() {
   const [assessments, setAssessments] = useState([]);
   const [stream, setStream]           = useState('');
   const [assessment, setAssessment]   = useState('');
+  const [mode, setMode]               = useState('single');
+  const [combinedSelection, setCombinedSelection] = useState({});
+  const [showMissingModal, setShowMissingModal] = useState(false);
+  const [missingPayload, setMissingPayload] = useState([]);
+  const [treatMissingAsZero, setTreatMissingAsZero] = useState(false);
 
   const [results, setResults]               = useState(null);
   const [loading, setLoading]               = useState(false);
@@ -108,6 +141,17 @@ export default function ResultsPage() {
   const [isPublished, setIsPublished]     = useState(false);
   const [publishLoading, setPublishLoading] = useState(false);
   const [unlockingSubject, setUnlockingSubject] = useState(null); // subject_id being unlocked
+
+  const selectedCombinedAssessments = assessments
+    .filter(a => combinedSelection[a.id]?.selected)
+    .map(a => ({
+      assessment_id: a.id,
+      name: a.name,
+      academic_year: a.academic_year,
+      weight: Number(combinedSelection[a.id]?.weight || 0),
+    }));
+  const combinedWeightTotal = selectedCombinedAssessments
+    .reduce((acc, item) => acc + (Number.isFinite(item.weight) ? item.weight : 0), 0);
 
   useEffect(() => {
     Promise.all([
@@ -131,9 +175,51 @@ export default function ResultsPage() {
       setResults(resData.data);
       setSubmissionStats(statsData.data.results ?? statsData.data);
       setIsPublished(pubData.data.is_published ?? false);
-    } catch { showToast('Failed to load results.', 'error'); }
+    } catch (e) {
+      showToast(e.response?.data?.error ?? 'Failed to load results.', 'error');
+    }
     finally { setLoading(false); }
   }, [stream, assessment]);
+
+  async function fetchCombinedResults(allowMissingAsZero = false) {
+    if (!stream) return;
+    if (selectedCombinedAssessments.length < 2) {
+      showToast('Select at least two assessments in combined mode.', 'error');
+      return;
+    }
+    if (combinedWeightTotal !== 100) {
+      showToast('Combined weights must total exactly 100%.', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        stream,
+        assessments: selectedCombinedAssessments.map(a => ({
+          assessment_id: a.assessment_id,
+          weight: a.weight,
+        })),
+        treat_missing_as_zero: allowMissingAsZero,
+      };
+      const res = await apiClient.post('/academy/results/combined/', payload);
+      if (res.data?.requires_confirmation) {
+        setMissingPayload(res.data.missing_marks ?? []);
+        setShowMissingModal(true);
+        setTreatMissingAsZero(false);
+        setResults(null);
+        return;
+      }
+      setTreatMissingAsZero(allowMissingAsZero);
+      setResults(res.data);
+      setSubmissionStats([]);
+      setIsPublished(false);
+    } catch (e) {
+      showToast(e.response?.data?.error ?? 'Failed to load combined results.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleUnlock(subjectId) {
     if (!stream || !assessment) return;
@@ -154,6 +240,28 @@ export default function ResultsPage() {
     }
   }
 
+  function toggleCombinedAssessment(assessmentId, selected) {
+    setCombinedSelection(prev => ({
+      ...prev,
+      [assessmentId]: {
+        selected,
+        weight: selected ? (prev[assessmentId]?.weight || '') : '',
+      },
+    }));
+    setResults(null);
+  }
+
+  function updateCombinedWeight(assessmentId, weight) {
+    setCombinedSelection(prev => ({
+      ...prev,
+      [assessmentId]: {
+        selected: true,
+        weight,
+      },
+    }));
+    setResults(null);
+  }
+
   const selectedStream = streams.find(s => String(s.id) === String(stream));
   const selectedStreamLabel = selectedStream
     ? `${selectedStream.class_level_name} ${selectedStream.name}`.trim()
@@ -171,7 +279,11 @@ export default function ResultsPage() {
   const subjectCodes  = results
     ? (results.subject_codes ?? makeSubjectCodes(results.subjects))
     : {};
-  const analytics     = results ? buildAnalytics(results.subjects, results.students, results.school_type) : [];
+  const analytics     = (results && mode === 'single') ? buildAnalytics(results.subjects, results.students, results.school_type) : [];
+  const combinedAnalytics = (results && mode === 'combined')
+    ? buildCombinedAnalytics(results.subjects, results.students, results.school_type)
+    : [];
+  const summaryAnalytics = mode === 'combined' ? combinedAnalytics : analytics;
   const gradeLabels   = results?.school_type === 'ADVANCED' ? ['A','B','C','D','E','F'] : ['A','B','C','D','F'];
   const isPrimary     = results?.school_type === 'PRIMARY';
   const divSummary    = (!isPrimary && results) ? results.students.reduce((acc, s) => {
@@ -191,11 +303,11 @@ export default function ResultsPage() {
     return DIV_ORDER.filter(d => tally[d]?.total > 0).map(d => ({ div: d, ...tally[d] }));
   })() : null;
   // NECTA Centre GPA = (A×1 + B×2 + C×3 + D×4 + F×5) / total exam papers sat
-  const { classGpa, classGrade } = (!isPrimary && analytics.length) ? (() => {
+  const { classGpa, classGrade } = (!isPrimary && summaryAnalytics.length) ? (() => {
     const gpaMap = results.school_type === 'ADVANCED' ? GPA_MAP_ADV : GPA_MAP_ORD;
     let totalPoints = 0;
     let totalPapers = 0;
-    analytics.forEach(row => {
+    summaryAnalytics.forEach(row => {
       if (!row.sat) return;
       totalPapers += row.sat;
       Object.entries(row.gc).forEach(([g, cnt]) => {
@@ -210,18 +322,37 @@ export default function ResultsPage() {
   })() : { classGpa: null, classGrade: null };
   const [pdfLoading, setPdfLoading] = useState(false);
 
+  const canGenerateSingle = Boolean(stream && assessment);
+  const canGenerateCombined = Boolean(stream && selectedCombinedAssessments.length >= 2 && combinedWeightTotal === 100);
+
+  async function loadResults() {
+    if (mode === 'combined') {
+      await fetchCombinedResults(false);
+      return;
+    }
+    await fetchResults();
+  }
+
   async function handlePrint() {
-    if (!stream || !assessment) return;
+    if (!stream) return;
     setPdfLoading(true);
     try {
-      const r = await apiClient.get('/academy/results/pdf/', {
-        params: { assessment, stream },
-        responseType: 'blob',
-      });
+      const r = mode === 'combined'
+        ? await apiClient.post('/academy/results/combined/pdf/', {
+          stream,
+          assessments: selectedCombinedAssessments.map(a => ({ assessment_id: a.assessment_id, weight: a.weight })),
+          treat_missing_as_zero: treatMissingAsZero,
+        }, { responseType: 'blob' })
+        : await apiClient.get('/academy/results/pdf/', {
+          params: { assessment, stream },
+          responseType: 'blob',
+        });
       const url = window.URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `results_${stream}_${assessment}.pdf`;
+      a.download = mode === 'combined'
+        ? `combined_results_${stream}.pdf`
+        : `results_${stream}_${assessment}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -237,6 +368,72 @@ export default function ResultsPage() {
     if (!results) return;
     const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const lines = [];
+
+    if (mode === 'combined') {
+      lines.push(`# Combined Results — ${results.stream_label ?? selectedStreamLabel}`);
+      lines.push('');
+      const headers = [
+        'Position',
+        'Student Name',
+        'Gender',
+        ...results.subjects.map(s => subjectCodes[s] ?? s),
+        'Total',
+        'Overall Average',
+        ...(results.school_type === 'PRIMARY' ? ['Grade'] : ['Points', 'Division']),
+        'Excluded Subjects',
+      ];
+      lines.push(headers.map(esc).join(','));
+      results.students.forEach(st => {
+        const row = [
+          st.rank ?? '',
+          st.display_name,
+          st.gender || '',
+          ...results.subjects.map(subj => {
+            const d = st.subjects?.[subj];
+            if (!d || d.excluded || d.excluded_for_no_marks) return '';
+            return d.final_score == null ? '' : Number(d.final_score).toFixed(1);
+          }),
+          st.total_score ?? '',
+          st.average ?? '',
+          ...(results.school_type === 'PRIMARY'
+            ? [st.grade ?? '']
+            : [st.points ?? '', st.division ?? '']),
+          (st.excluded_subjects ?? []).join('; '),
+        ];
+        lines.push(row.map(esc).join(','));
+      });
+
+      lines.push('');
+      lines.push('## CLASS PERFORMANCE SUMMARY');
+      const combinedAnalyticsHeader = ['Subject', 'Sat', ...gradeLabels, 'Pass%', 'Avg', 'High', 'Low', 'GPA'];
+      lines.push(combinedAnalyticsHeader.map(esc).join(','));
+      combinedAnalytics.forEach(row => {
+        lines.push([
+          row.subj,
+          row.sat,
+          ...gradeLabels.map(g => row.gc[g] ?? 0),
+          row.passRate,
+          row.avg,
+          row.high,
+          row.low,
+          row.gpa ?? '',
+        ].map(esc).join(','));
+      });
+
+      if (!isPrimary && classGpa !== null) {
+        lines.push('');
+        lines.push([esc('Class GPA'), esc(classGpa)].join(','));
+      }
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `combined_results_${results.stream_label ?? selectedStreamLabel}.csv`.replace(/\s+/g, '_');
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
 
     // Title
     lines.push(`# Results \u2014 ${selectedStreamLabel} \u2014 ${selectedAssessmentName}`);
@@ -325,7 +522,7 @@ export default function ResultsPage() {
       <PageHeader icon={BarChart2} title="Live Results" subtitle="Real-time standings as marks are collected"
         action={
           <div className="flex gap-2 flex-wrap">
-            <button onClick={fetchResults} disabled={!stream || !assessment || loading}
+            <button onClick={loadResults} disabled={mode === 'single' ? !canGenerateSingle || loading : !canGenerateCombined || loading}
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition">
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
@@ -350,13 +547,13 @@ export default function ResultsPage() {
                   <Download size={14} /> Download CSV
                   {!canCSV && <span className="ml-1 text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
                 </button>
-                {canSMS && (
+                {mode === 'single' && canSMS && (
                   <button onClick={() => setShowSMS(true)}
                     className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition">
                     <MessageSquare size={14} /> Send SMS
                   </button>
                 )}
-                {isPublished ? (
+                {mode === 'single' && isPublished ? (
                   <button onClick={handleUnpublish} disabled={publishLoading || !canDownload}
                     title={!canDownload ? 'Upgrade to Standard or Pro to manage publication' : undefined}
                     className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg transition
@@ -366,7 +563,7 @@ export default function ResultsPage() {
                     {publishLoading ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />} Unpublish
                     {!canDownload && <span className="ml-1 text-xs bg-slate-300 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
                   </button>
-                ) : (
+                ) : mode === 'single' ? (
                   <button onClick={() => canDownload && setShowPublish(true)}
                     disabled={!canDownload}
                     title={!canDownload ? 'Upgrade to Standard or Pro to publish results' : undefined}
@@ -377,7 +574,7 @@ export default function ResultsPage() {
                     <Globe size={14} /> Publish Results
                     {!canDownload && <span className="ml-1 text-xs bg-slate-300 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
                   </button>
-                )}
+                ) : null}
               </>
             )}
           </div>
@@ -389,32 +586,92 @@ export default function ResultsPage() {
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">Stream / Class</label>
           <select className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
-            value={stream} onChange={e => { setStream(e.target.value); setResults(null); }}>
+            value={stream} onChange={e => { setStream(e.target.value); setResults(null); setShowMissingModal(false); }}>
             <option value="">Select stream…</option>
             {streams.map(s => <option key={s.id} value={s.id}>{s.class_level_name} {s.name}</option>)}
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Assessment</label>
-          <select className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
-            value={assessment} onChange={e => { setAssessment(e.target.value); setResults(null); }}>
-            <option value="">Select assessment…</option>
-            {assessments.map(a => <option key={a.id} value={a.id}>{a.name} ({a.academic_year})</option>)}
-          </select>
-        </div>
-        {stream && assessment && (
-          <div className="flex items-end">
-            <button onClick={fetchResults}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
-              <RefreshCw size={14} /> Load
+        <div className="flex items-end">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 dark:bg-slate-800 dark:border-slate-600">
+            <button
+              onClick={() => { setMode('single'); setResults(null); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${mode === 'single' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
+              Single Assessment
             </button>
+            <button
+              onClick={() => { setMode('combined'); setResults(null); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${mode === 'combined' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
+              Combined
+            </button>
+          </div>
+        </div>
+        {mode === 'single' ? (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Assessment</label>
+              <select className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
+                value={assessment} onChange={e => { setAssessment(e.target.value); setResults(null); }}>
+                <option value="">Select assessment…</option>
+                {assessments.map(a => <option key={a.id} value={a.id}>{a.name} ({a.academic_year})</option>)}
+              </select>
+            </div>
+            {stream && assessment && (
+              <div className="flex items-end">
+                <button onClick={loadResults}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+                  <RefreshCw size={14} /> Load
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="w-full rounded-xl border border-slate-200 bg-white p-4 dark:bg-slate-800 dark:border-slate-700">
+            <div className="flex flex-wrap gap-3">
+              {assessments.map(a => {
+                const selected = Boolean(combinedSelection[a.id]?.selected);
+                return (
+                  <label key={a.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={e => toggleCombinedAssessment(a.id, e.target.checked)}
+                    />
+                    <span>{a.name} ({a.academic_year})</span>
+                    {selected && (
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={combinedSelection[a.id]?.weight ?? ''}
+                        onChange={e => updateCombinedWeight(a.id, e.target.value)}
+                        className="w-20 rounded-md border border-slate-200 px-2 py-1 text-xs dark:bg-slate-700 dark:border-slate-600"
+                        placeholder="weight"
+                      />
+                    )}
+                    {selected && <span className="text-xs text-slate-500">%</span>}
+                  </label>
+                );
+              })}
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <span className={`text-sm font-semibold ${combinedWeightTotal === 100 ? 'text-green-600' : 'text-amber-600'}`}>
+                Total Weight: {combinedWeightTotal}%
+              </span>
+              <button
+                onClick={loadResults}
+                disabled={!canGenerateCombined || loading}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50">
+                <RefreshCw size={14} /> Generate
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       {loading && <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}
 
-      {!loading && results && (
+      {!loading && results && mode === 'single' && (
         <div className="space-y-5">
 
           {/* Publication status banner */}
@@ -653,6 +910,239 @@ export default function ResultsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {!loading && results && mode === 'combined' && (
+        <div className="space-y-5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                {results.stream_label || selectedStreamLabel} — Combined Results
+                <span className="text-xs font-normal text-slate-400 ml-2">({results.students.length} students)</span>
+              </p>
+              <span className="text-xs text-slate-500">
+                {results.assessments.map(a => `${a.name} (${a.weight}%)`).join(' | ')}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="text-left px-3 py-3 font-semibold text-slate-500 uppercase">Position</th>
+                    <th className="text-left px-3 py-3 font-semibold text-slate-500 uppercase">Student Name</th>
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">G</th>
+                    {results.subjects.map(subj => (
+                      <th key={subj} title={subj} className="text-center px-3 py-3 font-semibold text-slate-500 uppercase cursor-help">
+                        {subjectCodes[subj] ?? subj}
+                      </th>
+                    ))}
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Total</th>
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Overall Avg</th>
+                    {results.school_type === 'PRIMARY' ? (
+                      <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Grade</th>
+                    ) : (
+                      <>
+                        <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Pts</th>
+                        <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Division</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {results.students.map(s => (
+                    <tr key={s.student_id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                      <td className="px-3 py-2.5 font-bold text-slate-500">{s.rank ?? '—'}</td>
+                      <td className="px-3 py-2.5 font-medium text-slate-800 dark:text-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span>{s.display_name}</span>
+                          {s.has_excluded_subjects && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                              <AlertTriangle size={10} /> Excluded {s.excluded_subjects?.length || 0} no-mark subject(s)
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-slate-400">{s.gender || '—'}</td>
+                      {results.subjects.map(subj => {
+                        const d = s.subjects?.[subj];
+                        if (!d || d.excluded) {
+                          return <td key={subj} className="px-3 py-2.5 text-center text-slate-300">—</td>;
+                        }
+                        if (d.excluded_for_no_marks) {
+                          return <td key={subj} className="px-3 py-2.5 text-center text-amber-600 font-semibold">Excluded</td>;
+                        }
+                        const parts = results.assessments.map(a => {
+                          const score = d.assessment_scores?.[a.id];
+                          const safeScore = score == null ? (treatMissingAsZero ? 0 : null) : Number(score);
+                          if (safeScore == null) return `${a.name}: —`;
+                          const weighted = safeScore * (Number(a.weight) / 100);
+                          return `${a.name}: ${safeScore.toFixed(1)}×${Number(a.weight).toFixed(0)}%=${weighted.toFixed(1)}`;
+                        }).join(' | ');
+                        return (
+                          <td key={subj} className="px-3 py-2.5 text-center font-mono text-slate-700 dark:text-slate-200" title={parts}>
+                            {d.final_score == null ? '—' : Number(d.final_score).toFixed(1)}
+                          </td>
+                        );
+                      })}
+                      <td className="px-3 py-2.5 text-center font-semibold text-slate-700 dark:text-slate-200">
+                        {s.total_score == null ? '—' : Number(s.total_score).toFixed(1)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-bold text-blue-700 dark:text-blue-300">
+                        {s.average == null ? '—' : Number(s.average).toFixed(1)}
+                      </td>
+                      {results.school_type === 'PRIMARY' ? (
+                        <td className={`px-3 py-2.5 text-center font-bold ${GRADE_COLOR[s.grade] ?? ''}`}>{s.grade ?? '—'}</td>
+                      ) : (
+                        <>
+                          <td className="px-3 py-2.5 text-center text-slate-600 dark:text-slate-300">{s.points ?? '—'}</td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded-full ${DIV_COLOR[s.division] ?? 'bg-slate-100 text-slate-600'}`}>
+                              {s.division ?? '—'}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Subject Key</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {results.subjects.map(s => (
+                  <span key={s} className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="font-bold text-slate-700 dark:text-slate-200">{subjectCodes[s] ?? s}</span> = {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+              <TrendingUp size={15} className="text-blue-500" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Class Performance Summary</p>
+              <span className="text-xs text-slate-400 ml-1">— Combined subject analytics</span>
+            </div>
+
+            {!isPrimary && divGenderSummary && divGenderSummary.length > 0 && (
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-700/20">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">Division Breakdown by Gender</p>
+                <div className="overflow-x-auto">
+                  <table className="text-xs min-w-72">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-600">
+                        <th className="text-left pr-8 pb-1 font-semibold text-slate-500 uppercase">Division</th>
+                        <th className="text-center px-6 pb-1 font-semibold text-blue-500 uppercase">Boys</th>
+                        <th className="text-center px-6 pb-1 font-semibold text-pink-500 uppercase">Girls</th>
+                        <th className="text-center px-6 pb-1 font-semibold text-slate-600 dark:text-slate-300 uppercase">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {divGenderSummary.map(row => (
+                        <tr key={row.div} className="border-b border-slate-100 dark:border-slate-700/40">
+                          <td className="pr-8 py-1">
+                            <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded-full ${DIV_COLOR[row.div] ?? 'bg-slate-100 text-slate-600'}`}>
+                              {row.div}
+                            </span>
+                          </td>
+                          <td className="text-center px-6 py-1 font-mono text-blue-600 dark:text-blue-400">{row.M}</td>
+                          <td className="text-center px-6 py-1 font-mono text-pink-600 dark:text-pink-400">{row.F}</td>
+                          <td className="text-center px-6 py-1 font-mono font-semibold text-slate-700 dark:text-slate-200">{row.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="text-left px-3 py-3 font-semibold text-slate-500 uppercase">Subject</th>
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Sat</th>
+                    {gradeLabels.map(g => (
+                      <th key={g} className={`text-center px-3 py-3 font-semibold uppercase ${GRADE_COLOR[g] ?? 'text-slate-500'}`}>{g}</th>
+                    ))}
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Pass%</th>
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Avg</th>
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">High</th>
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">Low</th>
+                    <th className="text-center px-3 py-3 font-semibold text-slate-500 uppercase">GPA</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {combinedAnalytics.map((row, i) => (
+                    <tr key={row.subj} className={i % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-700/20'}>
+                      <td className="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-200">
+                        <span className="font-bold text-slate-400 mr-1.5">{subjectCodes[row.subj] ?? row.subj}</span>{row.subj}
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono text-slate-600 dark:text-slate-300">{row.sat}</td>
+                      {row.gradeSet.map(g => (
+                        <td key={g} className={`px-3 py-2.5 text-center font-mono ${GRADE_COLOR[g] ?? ''}`}>
+                          {row.gc[g] ?? 0}
+                        </td>
+                      ))}
+                      <td className="px-3 py-2.5 text-center font-semibold text-slate-700 dark:text-slate-200">{row.passRate}</td>
+                      <td className="px-3 py-2.5 text-center font-mono text-slate-600 dark:text-slate-300">{row.avg}</td>
+                      <td className="px-3 py-2.5 text-center font-mono text-green-600 dark:text-green-400">{row.high}</td>
+                      <td className="px-3 py-2.5 text-center font-mono text-red-500 dark:text-red-400">{row.low}</td>
+                      <td className={`px-3 py-2.5 text-center font-mono ${gpaColor(row.gpa)}`}>{row.gpa ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {classGpa !== null && (
+              <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex flex-wrap gap-3 items-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Centre GPA:</span>
+                <span className={`text-sm font-bold ${gpaColor(classGpa)}`}>{classGpa}</span>
+                {classGrade && (
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${GRADE_COLOR[classGrade] ?? ''}`}>
+                    Grade {classGrade}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showMissingModal && (
+        <Modal title="Missing Marks Detected" onClose={() => setShowMissingModal(false)} maxWidth="max-w-2xl">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Some students are missing marks in selected assessments. Choose whether to continue by treating missing marks as 0.
+            </p>
+            <div className="max-h-72 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+              {missingPayload.map(item => (
+                <div key={item.assessment_id} className="text-xs text-amber-900">
+                  <p className="font-semibold">{item.assessment_name}</p>
+                  <p>{item.students.join(', ')}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowMissingModal(false)}
+                className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+                Cancel and fix missing marks first
+              </button>
+              <button
+                onClick={async () => {
+                  setShowMissingModal(false);
+                  await fetchCombinedResults(true);
+                }}
+                className="px-4 py-2 text-sm rounded-lg bg-amber-600 text-white hover:bg-amber-700">
+                Treat missing marks as 0 and continue
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Publish modal */}

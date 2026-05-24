@@ -22,13 +22,13 @@ NECTA_DEFAULTS = {
         {'grade_label': 'S', 'min_score': 35, 'max_score': 39,  'points': 0, 'remarks': 'Subsidiary Pass'},
         {'grade_label': 'F', 'min_score':  0, 'max_score': 34,  'points': 0, 'remarks': 'Fail'},
     ],
-    # Primary (PSLE): A≥75, B≥65, C≥45, D≥30, F<30
+    # Primary (PSLE): A≥80, B≥70, C≥60, D≥50, F<50
     'PRIMARY': [
-        {'grade_label': 'A', 'min_score': 75, 'max_score': 100, 'points': 1, 'remarks': 'Excellent'},
-        {'grade_label': 'B', 'min_score': 65, 'max_score': 74,  'points': 2, 'remarks': 'Very Good'},
-        {'grade_label': 'C', 'min_score': 45, 'max_score': 64,  'points': 3, 'remarks': 'Good'},
-        {'grade_label': 'D', 'min_score': 30, 'max_score': 44,  'points': 4, 'remarks': 'Satisfactory'},
-        {'grade_label': 'F', 'min_score':  0, 'max_score': 29,  'points': 5, 'remarks': 'Fail'},
+        {'grade_label': 'A', 'min_score': 80, 'max_score': 100, 'points': 1, 'remarks': 'Excellent'},
+        {'grade_label': 'B', 'min_score': 65, 'max_score': 79,  'points': 2, 'remarks': 'Very Good'},
+        {'grade_label': 'C', 'min_score': 50, 'max_score': 64,  'points': 3, 'remarks': 'Good'},
+        {'grade_label': 'D', 'min_score': 35, 'max_score': 49,  'points': 4, 'remarks': 'Satisfactory'},
+        {'grade_label': 'E', 'min_score':  0, 'max_score': 34,  'points': 5, 'remarks': 'Fail'},
     ],
 }
 NECTA_DEFAULTS['COMBINED'] = NECTA_DEFAULTS['ORDINARY']

@@ -34,6 +34,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from academy.permissions import IsSchoolPaid, IsSchoolPaidOrDownloadOnly
+from academy.combined import build_combined_results_data, CombinedResultsValidationError
 
 from academy.grading import NECTA_DEFAULTS, compute_student_summary, get_grade_from_configs
 from academy.models import (
@@ -173,6 +174,48 @@ def _build_analytics(subjects, students, school_type):
     return rows
 
 
+def _build_combined_analytics(subjects, students, school_type):
+    """Compute per-subject analytics from combined-mode final subject scores."""
+    grade_set = ['A', 'B', 'C', 'D', 'E', 'F'] if school_type == 'ADVANCED' else ['A', 'B', 'C', 'D', 'F']
+    gpa_map = _GPA_MAP_ADV if school_type == 'ADVANCED' else _GPA_MAP_ORD
+    rows = []
+    for subj in subjects:
+        scores = []
+        gc = {g: 0 for g in grade_set}
+        gpa_sum = 0
+        for st in students:
+            d = (st.get('subjects') or {}).get(subj)
+            if not d or d.get('excluded') or d.get('excluded_for_no_marks'):
+                continue
+            score = d.get('final_score')
+            if score is None:
+                continue
+            grade = d.get('grade', '-')
+            scores.append(float(score))
+            if grade in gc:
+                gc[grade] += 1
+            gpa_sum += gpa_map.get(grade, 5)
+        sat = len(scores)
+        avg = round(sum(scores) / sat, 1) if sat else None
+        high = max(scores) if sat else None
+        low = min(scores) if sat else None
+        passes = sat - gc.get('F', 0)
+        pass_rate = f"{round((passes / sat) * 100)}%" if sat else '–'
+        gpa = round(gpa_sum / sat, 2) if sat else None
+        rows.append({
+            'subj': subj,
+            'sat': sat,
+            'gc': gc,
+            'grade_set': grade_set,
+            'avg': f'{avg}' if avg is not None else '–',
+            'high': f'{high:.1f}' if high is not None else '–',
+            'low': f'{low:.1f}' if low is not None else '–',
+            'pass_rate': pass_rate,
+            'gpa': gpa,
+        })
+    return rows
+
+
 def _fetch_results_data(request):
     """
     Load all results data — shared between ResultsPDFView and ReportCardsPDFView.
@@ -295,6 +338,14 @@ def _fetch_results_data(request):
         'assessment_year': assessment_year,
         'grade_configs': grade_configs,
     }
+
+
+def _combined_payload(request):
+    stream_id = request.data.get('stream')
+    assessments = request.data.get('assessments')
+    treat_missing_as_zero = bool(request.data.get('treat_missing_as_zero', False))
+    single_student_id = request.data.get('student_id')
+    return stream_id, assessments, treat_missing_as_zero, single_student_id
 
 
 # ── ReportLab building blocks ──────────────────────────────────────────────────
@@ -1495,3 +1546,484 @@ class ReportCardsPDFView(APIView):
         resp = HttpResponse(buf.read(), content_type='application/pdf')
         resp['Content-Disposition'] = f'inline; filename="{fn}"'
         return resp
+
+
+class CombinedResultsPDFView(APIView):
+    """
+    POST /api/v1/academy/results/combined/pdf/
+    Body: {stream, assessments:[{assessment_id, weight}], treat_missing_as_zero}
+    """
+    permission_classes = [IsAuthenticated, IsSchoolPaidOrDownloadOnly]
+
+    def post(self, request):
+        stream_id, assessments, treat_missing_as_zero, _ = _combined_payload(request)
+        if not stream_id:
+            return Response({'error': 'stream is required.'}, status=400)
+
+        try:
+            combined = build_combined_results_data(
+                school=_school_of(request),
+                stream_id=stream_id,
+                assessment_weights=assessments,
+                treat_missing_as_zero=treat_missing_as_zero,
+            )
+        except CombinedResultsValidationError as exc:
+            return Response({'error': str(exc)}, status=400)
+
+        if combined.get('requires_confirmation'):
+            return Response(combined, status=200)
+
+        students = combined['students']
+        school_type = combined['school_type']
+        is_primary = school_type == 'PRIMARY'
+        assessments_meta = combined['assessments']
+        subjects = combined['subjects']
+        sub_codes = combined.get('subject_codes') or _make_subject_codes(subjects)
+        grade_labels = ['A', 'B', 'C', 'D', 'E', 'F'] if school_type == 'ADVANCED' else ['A', 'B', 'C', 'D', 'F']
+        analytics = _build_combined_analytics(subjects, students, school_type)
+
+        buf = io.BytesIO()
+        page_size = landscape(A4)
+        margin = 10 * mm
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=page_size,
+            leftMargin=margin,
+            rightMargin=margin,
+            topMargin=margin,
+            bottomMargin=margin,
+            title='Combined Results',
+        )
+        width = page_size[0] - 2 * margin
+        story = [
+            _gradient_bar(width),
+            Spacer(1, 4),
+            _school_header(_school_of(request), 'Combined Results', width),
+            Spacer(1, 5),
+            _meta_table([
+                ('Class', combined['stream_label']),
+                ('Mode', 'Combined Assessments'),
+                ('Assessments', ', '.join([f"{a['name']} ({a['weight']}%)" for a in assessments_meta])),
+                ('Total Students', str(len(students))),
+                ('Date Printed', date.today().strftime('%d %B %Y')),
+            ], width),
+            Spacer(1, 6),
+            _section_heading('A. COMBINED STANDINGS'),
+        ]
+
+        header = ['#', 'Student'] + [f"{a['name']} ({a['weight']}%)" for a in assessments_meta] + ['Final', 'Division']
+        table_data = [header]
+        for st in students:
+            row = [str(st['rank'] or '–'), st['display_name']]
+            for a in assessments_meta:
+                w = st['assessment_averages'].get(a['id'], {}).get('weighted_average')
+                row.append(f'{w:.2f}' if w is not None else '–')
+            final_avg = st.get('final_weighted_average')
+            row.append(f'{final_avg:.2f}' if final_avg is not None else '–')
+            row.append(st.get('division') or st.get('grade') or '–')
+            table_data.append(row)
+
+        fixed = (8 + 45 + 14 + 18) * mm
+        n_mid = max(len(assessments_meta), 1)
+        mid_w = max((width - fixed) / n_mid, 20 * mm)
+        col_widths = [8 * mm, 45 * mm] + [mid_w] * len(assessments_meta) + [14 * mm, 18 * mm]
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), NAVY),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#e2e8f0')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, ROW_ALT]),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(table)
+
+        # ── Section B: Division summary by gender (O/A-level) ──
+        if not is_primary:
+            div_order = ['Division I', 'Division II', 'Division III', 'Division IV', 'Division 0']
+            dg_tally = {d: {'M': 0, 'F': 0, 'total': 0} for d in div_order}
+            for st in students:
+                d = st.get('division')
+                g = st.get('gender', 'F')
+                if d and d in dg_tally:
+                    dg_tally[d]['M' if g == 'M' else 'F'] += 1
+                    dg_tally[d]['total'] += 1
+            active_divs = [d for d in div_order if dg_tally[d]['total'] > 0]
+            if active_divs:
+                story.append(Spacer(1, 6))
+                story.append(_section_heading('B. DIVISION SUMMARY BY GENDER'))
+                lbl_s = ParagraphStyle('cdgl', fontName='Helvetica-Bold', fontSize=8, alignment=0)
+                val_s = ParagraphStyle('cdgv', fontName='Helvetica', fontSize=8, alignment=1)
+                dg_rows = [[
+                    Paragraph('<font color="white"><b>Division</b></font>', lbl_s),
+                    Paragraph('<font color="white"><b>Boys (M)</b></font>', val_s),
+                    Paragraph('<font color="white"><b>Girls (F)</b></font>', val_s),
+                    Paragraph('<font color="white"><b>Total</b></font>', val_s),
+                ]]
+                tot_m = tot_f = tot_t = 0
+                for d in active_divs:
+                    row = dg_tally[d]
+                    hx = DIV_HEX.get(d, '#64748b')
+                    tot_m += row['M']; tot_f += row['F']; tot_t += row['total']
+                    dg_rows.append([
+                        Paragraph(f'<font color="{hx}"><b>{d}</b></font>', lbl_s),
+                        Paragraph(f'<font color="#1d4ed8">{row["M"]}</font>', val_s),
+                        Paragraph(f'<font color="#be185d">{row["F"]}</font>', val_s),
+                        Paragraph(f'<b>{row["total"]}</b>', val_s),
+                    ])
+                dg_rows.append([
+                    Paragraph('<b>Total</b>', lbl_s),
+                    Paragraph(f'<font color="#1d4ed8"><b>{tot_m}</b></font>', val_s),
+                    Paragraph(f'<font color="#be185d"><b>{tot_f}</b></font>', val_s),
+                    Paragraph(f'<b>{tot_t}</b>', val_s),
+                ])
+                col_w = 45 * mm
+                dg_tbl = Table(dg_rows, colWidths=[col_w] * 4, hAlign='LEFT')
+                dg_tbl.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), NAVY),
+                    ('LINEBELOW', (0, 0), (-1, 0), 1, GOLD),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                    ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                    ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#e2e8f0')),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, ROW_ALT]),
+                    ('BACKGROUND', (0, -1), (-1, -1), LIGHT_BG),
+                    ('LINEABOVE', (0, -1), (-1, -1), 1, BORDER_BLUE),
+                ]))
+                story.append(dg_tbl)
+
+        # ── Section C: Class performance summary ──
+        story.append(Spacer(1, 6))
+        story.append(_section_heading('C. CLASS PERFORMANCE SUMMARY'))
+        an_header = ['Subject', 'Sat'] + grade_labels + ['Pass%', 'Avg', 'High', 'Low', 'GPA']
+        an_data = [an_header]
+        subj_cell_style = ParagraphStyle('cas', fontName='Helvetica', fontSize=7)
+        gpa_cell_style = ParagraphStyle('cgpas', fontName='Helvetica-Bold', fontSize=7, alignment=1)
+        for row in analytics:
+            arow = [
+                Paragraph(f'<b>{sub_codes.get(row["subj"], row["subj"])}</b> {row["subj"]}', subj_cell_style),
+                str(row['sat']),
+            ]
+            for g in row['grade_set']:
+                arow.append(str(row['gc'].get(g, 0)))
+            if row['gpa'] is not None:
+                hex_c = _gpa_color_hex(row['gpa'])
+                gpa_cell = Paragraph(f'<font color="{hex_c}">{row["gpa"]:.2f}</font>', gpa_cell_style)
+            else:
+                gpa_cell = '–'
+            arow += [row['pass_rate'], row['avg'], row['high'], row['low'], gpa_cell]
+            an_data.append(arow)
+
+        an_grade_w = 10 * mm
+        an_col_ws = [55 * mm, 10 * mm] + [an_grade_w] * len(grade_labels) + [13 * mm, 13 * mm, 13 * mm, 13 * mm, 13 * mm]
+        at = Table(an_data, colWidths=an_col_ws, repeatRows=1)
+        at_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), NAVY),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('TOPPADDING', (0, 0), (-1, 0), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, GOLD),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 1), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#e2e8f0')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, ROW_ALT]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]
+        for gi, g in enumerate(grade_labels):
+            col = 2 + gi
+            at_style.append(('TEXTCOLOR', (col, 0), (col, 0), GRADE_COLORS.get(g, SLATE_GREY)))
+        pass_col = 2 + len(grade_labels)
+        at_style += [
+            ('TEXTCOLOR', (pass_col, 1), (pass_col, -1), G_GREEN),
+            ('FONTNAME', (pass_col, 1), (pass_col, -1), 'Helvetica-Bold'),
+            ('TEXTCOLOR', (pass_col + 2, 1), (pass_col + 2, -1), G_GREEN),
+            ('TEXTCOLOR', (pass_col + 3, 1), (pass_col + 3, -1), G_RED),
+            ('TEXTCOLOR', (pass_col + 4, 0), (pass_col + 4, 0), GOLD),
+            ('BACKGROUND', (pass_col + 4, 1), (pass_col + 4, -1), colors.HexColor('#f0fdf4')),
+        ]
+        at.setStyle(TableStyle(at_style))
+        story.append(at)
+
+        # ── Centre GPA bar (O/A-level only) ──
+        if not is_primary and analytics:
+            gpa_map_c = _GPA_MAP_ADV if school_type == 'ADVANCED' else _GPA_MAP_ORD
+            total_points = 0
+            total_papers = 0
+            for row in analytics:
+                sat = row.get('sat', 0)
+                if not sat:
+                    continue
+                total_papers += sat
+                for g, cnt in row['gc'].items():
+                    total_points += gpa_map_c.get(g, 5) * cnt
+            if total_papers > 0:
+                class_gpa = round(total_points / total_papers, 2)
+                if class_gpa <= 1.5:
+                    class_grade = 'A'
+                elif class_gpa <= 2.5:
+                    class_grade = 'B'
+                elif class_gpa <= 3.5:
+                    class_grade = 'C'
+                elif class_gpa <= 4.5:
+                    class_grade = 'D'
+                else:
+                    class_grade = 'F'
+                ctbl = Table([[f'Centre GPA: {class_gpa:.2f}', f'Grade {class_grade}']], colWidths=[width * 0.7, width * 0.3])
+                ctbl.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+                    ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor(_gpa_color_hex(class_gpa))),
+                    ('TEXTCOLOR', (1, 0), (1, 0), GRADE_COLORS.get(class_grade, SLATE_GREY)),
+                    ('TOPPADDING', (0, 0), (-1, -1), 5),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ]))
+                story.append(Spacer(1, 5))
+                story.append(ctbl)
+
+        story.append(Spacer(1, 6))
+        story.append(_footer(width))
+
+        doc.build(story)
+        buf.seek(0)
+        response = HttpResponse(buf.read(), content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="combined_results.pdf"'
+        return response
+
+
+class CombinedReportCardsPDFView(APIView):
+    """
+    POST /api/v1/academy/report-cards/combined/pdf/
+    Body: {stream, assessments:[{assessment_id, weight}], treat_missing_as_zero, student_id?}
+    """
+    permission_classes = [IsAuthenticated, IsSchoolPaidOrDownloadOnly]
+
+    def post(self, request):
+        stream_id, assessments, treat_missing_as_zero, single_student_id = _combined_payload(request)
+        if not stream_id:
+            return Response({'error': 'stream is required.'}, status=400)
+
+        try:
+            combined = build_combined_results_data(
+                school=_school_of(request),
+                stream_id=stream_id,
+                assessment_weights=assessments,
+                treat_missing_as_zero=treat_missing_as_zero,
+            )
+        except CombinedResultsValidationError as exc:
+            return Response({'error': str(exc)}, status=400)
+
+        if combined.get('requires_confirmation'):
+            return Response(combined, status=200)
+
+        assessments_meta = combined['assessments']
+        students = combined['students']
+        if single_student_id:
+            students = [s for s in students if str(s['student_id']) == str(single_student_id)]
+
+        school = _school_of(request)
+        school_type = combined['school_type']
+        is_primary = school_type == 'PRIMARY'
+
+        buf = io.BytesIO()
+        margin = 10 * mm
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=A4,
+            leftMargin=margin,
+            rightMargin=margin,
+            topMargin=margin,
+            bottomMargin=margin,
+            title='Combined Report Cards',
+        )
+        width = A4[0] - 2 * margin
+        story = []
+
+        for i, student in enumerate(students):
+            if i > 0:
+                story.append(PageBreak())
+
+            story.append(_gradient_bar(width))
+            story.append(Spacer(1, 2))
+            story.append(_school_header(school, 'Academic Progress Report', width, compact=True))
+            story.append(Spacer(1, 3))
+
+            info = [
+                ('Student Name', student['display_name']),
+                ('Class / Stream', combined['stream_label']),
+                ('Assessment Mode', 'Combined'),
+                ('Assessments', ', '.join([f"{a['name']} ({a['weight']}%)" for a in assessments_meta])),
+            ]
+            if student.get('admission_number'):
+                info.append(('Adm. No.', student['admission_number']))
+            if student.get('rank'):
+                info.append(('Class Position', f"{student['rank']} / {student['total_students']}"))
+            story.append(_meta_table(info, width, cols=2))
+            story.append(Spacer(1, 3))
+
+            story.append(_section_heading('ACADEMIC PERFORMANCE', compact=True))
+            header = ['#', 'Subject'] + [f"{a['name']} ({a['weight']}%)" for a in assessments_meta] + ['Final', 'Grade', 'Remarks']
+            rows = [header]
+
+            printable_subjects = []
+            for subject_name in combined['subjects']:
+                detail = student['subjects'].get(subject_name, {})
+                if detail.get('excluded'):
+                    continue
+                printable_subjects.append((subject_name, detail))
+
+            for row_idx, (subject_name, detail) in enumerate(printable_subjects, 1):
+                row = [str(row_idx), subject_name]
+                for a in assessments_meta:
+                    score = detail.get('assessment_scores', {}).get(a['id'])
+                    row.append('0' if score is None and treat_missing_as_zero else (f'{score:.0f}' if isinstance(score, float) and score.is_integer() else (str(score) if score is not None else '–')))
+                final_score = detail.get('final_score')
+                grade = detail.get('grade') or '-'
+                remarks = detail.get('remarks') or '-'
+                row.extend([
+                    f'{final_score:.2f}' if final_score is not None else '–',
+                    grade,
+                    remarks,
+                ])
+                rows.append(row)
+
+            summary_grade = student.get('grade') or '–'
+            summary_div = student.get('division') or summary_grade
+            rows.append([
+                '',
+                'AVERAGE',
+                *[
+                    (f"{student.get('assessment_averages', {}).get(a['id'], {}).get('raw_average'):.2f}"
+                     if student.get('assessment_averages', {}).get(a['id'], {}).get('raw_average') is not None else '–')
+                    for a in assessments_meta
+                ],
+                f"{student.get('average'):.2f}" if student.get('average') is not None else '–',
+                summary_grade,
+                (student.get('grade_remarks') or '–') if is_primary else f"Pts: {student.get('points') or '–'} | Div: {summary_div}",
+            ])
+
+            fixed = (8 + 48 + 16 + 14 + 34) * mm
+            n_assess = max(len(assessments_meta), 1)
+            assess_w = max((width - fixed) / n_assess, 18 * mm)
+            col_widths = [8 * mm, 48 * mm] + [assess_w] * len(assessments_meta) + [16 * mm, 14 * mm, width - (8 + 48) * mm - (assess_w * len(assessments_meta)) - 16 * mm - 14 * mm]
+
+            table = Table(rows, colWidths=col_widths, repeatRows=1)
+            style = [
+                ('BACKGROUND', (0, 0), (-1, 0), NAVY),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 7),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ALIGN', (2, 1), (-2, -1), 'CENTER'),
+                ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+                ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+                ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#e2e8f0')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, ROW_ALT]),
+                ('BACKGROUND', (0, -1), (-1, -1), NAVY),
+                ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ]
+            for row_idx, (_, detail) in enumerate(printable_subjects, 1):
+                grade = detail.get('grade') or '-'
+                style.append(('TEXTCOLOR', (-2, row_idx), (-2, row_idx), GRADE_COLORS.get(grade, SLATE_GREY)))
+                style.append(('FONTNAME', (-2, row_idx), (-2, row_idx), 'Helvetica-Bold'))
+            table.setStyle(TableStyle(style))
+            story.append(table)
+            story.append(Spacer(1, 5))
+
+            if student.get('rank'):
+                summary_text = (
+                    f"Amekuwa nafasi ya <b>{student['rank']}</b> kati ya wanafunzi <b>{student['total_students']}</b>, "
+                    f"akiwa na wastani wa alama <b>{student.get('average', '–')}</b>."
+                )
+                if not is_primary:
+                    summary_text += f" Division: <b>{student.get('division') or '–'}</b>."
+                summary_box = Table(
+                    [[Paragraph(summary_text, ParagraphStyle('crt', fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#1e293b')))]],
+                    colWidths=[width],
+                )
+                summary_box.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fffbeb')),
+                    ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#fde68a')),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ]))
+                story.append(summary_box)
+
+            # Staff sections — aligned with single-assessment report card design
+            staff_labels = [
+                'Mwalimu wa Darasa',
+                'Mwalimu wa Taaluma',
+                'Mkuu wa Shule',
+            ]
+            lbl_style = ParagraphStyle('clbl', fontName='Helvetica-Bold', fontSize=8,
+                                       textColor=SLATE_GREY, spaceAfter=4)
+            sub_style = ParagraphStyle('csub', fontName='Helvetica', fontSize=7,
+                                       textColor=colors.HexColor('#94a3b8'), spaceAfter=2)
+
+            story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e2e8f0'),
+                                    spaceBefore=3, spaceAfter=3))
+
+            comment_w = width * 0.64
+            sig_w = width - comment_w
+            for label in staff_labels:
+                staff_row = Table(
+                    [
+                        [Paragraph(label, lbl_style), ''],
+                        [Paragraph('Maoni / Comment:', sub_style), Paragraph('Sahihi / Signature:', sub_style)],
+                        ['', ''],
+                    ],
+                    colWidths=[comment_w, sig_w],
+                    rowHeights=[None, None, 20],
+                )
+                staff_row.setStyle(TableStyle([
+                    ('SPAN', (0, 0), (1, 0)),
+                    ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fafafa')),
+                    ('TOPPADDING', (0, 0), (-1, -1), 3),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                    ('LINEBEFORE', (1, 1), (1, 2), 0.5, colors.HexColor('#e2e8f0')),
+                    ('LINEBELOW', (0, 2), (0, 2), 0.75, colors.HexColor('#cbd5e1')),
+                    ('LINEBELOW', (1, 2), (1, 2), 1.5, colors.HexColor('#334155')),
+                ]))
+                story.append(staff_row)
+                story.append(Spacer(1, 3))
+
+            story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e2e8f0'), spaceBefore=2))
+
+            story.append(Spacer(1, 3))
+            story.append(_footer(width))
+            story.append(Spacer(1, 2))
+            story.append(_gradient_bar(width))
+
+        doc.build(story)
+        buf.seek(0)
+        response = HttpResponse(buf.read(), content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="combined_report_cards.pdf"'
+        return response
