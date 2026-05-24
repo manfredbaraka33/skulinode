@@ -1611,22 +1611,45 @@ class CombinedResultsPDFView(APIView):
             _section_heading('A. COMBINED STANDINGS'),
         ]
 
-        header = ['#', 'Student'] + [f"{a['name']} ({a['weight']}%)" for a in assessments_meta] + ['Final', 'Division']
+        # Match HTML combined table: subject-wise columns, then total/overall and grade or points/division.
+        header = ['Pos', 'Student', 'G'] + [sub_codes.get(s, s) for s in subjects] + ['Total', 'Overall Avg']
+        if is_primary:
+            header += ['Grade']
+        else:
+            header += ['Pts', 'Division']
+
         table_data = [header]
         for st in students:
-            row = [str(st['rank'] or '–'), st['display_name']]
-            for a in assessments_meta:
-                w = st['assessment_averages'].get(a['id'], {}).get('weighted_average')
-                row.append(f'{w:.2f}' if w is not None else '–')
-            final_avg = st.get('final_weighted_average')
-            row.append(f'{final_avg:.2f}' if final_avg is not None else '–')
-            row.append(st.get('division') or st.get('grade') or '–')
+            row = [str(st.get('rank') or '–'), st.get('display_name', ''), st.get('gender') or '–']
+            subj_map = st.get('subjects', {})
+            for subj in subjects:
+                d = subj_map.get(subj) or {}
+                if d.get('excluded') or d.get('excluded_for_no_marks'):
+                    row.append('–')
+                    continue
+                fs = d.get('final_score')
+                row.append(f'{float(fs):.1f}' if fs is not None else '–')
+
+            total_score = st.get('total_score')
+            avg_score = st.get('average')
+            row.append(f'{float(total_score):.1f}' if total_score is not None else '–')
+            row.append(f'{float(avg_score):.1f}' if avg_score is not None else '–')
+
+            if is_primary:
+                row.append(st.get('grade') or '–')
+            else:
+                row.append(str(st.get('points')) if st.get('points') is not None else '–')
+                row.append(st.get('division') or '–')
             table_data.append(row)
 
-        fixed = (8 + 45 + 14 + 18) * mm
-        n_mid = max(len(assessments_meta), 1)
-        mid_w = max((width - fixed) / n_mid, 20 * mm)
-        col_widths = [8 * mm, 45 * mm] + [mid_w] * len(assessments_meta) + [14 * mm, 18 * mm]
+        fixed_mm = 8 + 45 + 8 + 13 + 14 + (12 if is_primary else 22)
+        n_subject_cols = max(len(subjects), 1)
+        subject_w = max((width - (fixed_mm * mm)) / n_subject_cols, 9 * mm)
+        col_widths = [8 * mm, 45 * mm, 8 * mm] + [subject_w] * len(subjects) + [13 * mm, 14 * mm]
+        if is_primary:
+            col_widths += [12 * mm]
+        else:
+            col_widths += [10 * mm, 12 * mm]
         table = Table(table_data, colWidths=col_widths, repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), NAVY),
@@ -1643,6 +1666,14 @@ class CombinedResultsPDFView(APIView):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         ]))
         story.append(table)
+
+        if subjects:
+            subject_key = '  |  '.join([f"{sub_codes.get(s, s)} = {s}" for s in subjects])
+            story.append(Spacer(1, 3))
+            story.append(Paragraph(
+                f'<b>Subject Key:</b> {subject_key}',
+                ParagraphStyle('csubkey', fontName='Helvetica', fontSize=7, textColor=SLATE_GREY),
+            ))
 
         # ── Section B: Division summary by gender (O/A-level) ──
         if not is_primary:
