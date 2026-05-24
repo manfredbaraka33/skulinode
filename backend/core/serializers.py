@@ -16,8 +16,47 @@ _REG_NO_PATTERN = re.compile(
 )
 
 
+class SchoolLogoField(serializers.ImageField):
+    """
+    ImageField that is resilient to missing local files.
+
+    - Cloudinary / remote URLs (absolute): returned as-is — always accessible.
+    - Local files that exist on disk: built into an absolute URL.
+    - Local files that no longer exist (ephemeral storage, deleted): returns None
+      so the frontend shows the placeholder instead of a broken image icon.
+    """
+
+    def to_representation(self, value):
+        if not value or not value.name:
+            return None
+        try:
+            url = value.url
+        except Exception:
+            return None
+
+        # Absolute URL means Cloudinary / S3 / external CDN — always reachable.
+        if url.startswith('http://') or url.startswith('https://'):
+            return url
+
+        # Relative URL means local FileSystemStorage — only return it when the
+        # file actually exists on disk (cloud platforms wipe files on restart).
+        import os
+        try:
+            if not os.path.exists(value.path):
+                return None
+        except Exception:
+            pass
+
+        request = self.context.get('request')
+        if request is not None:
+            return request.build_absolute_uri(url)
+        return url
+
+
 class SchoolSerializer(serializers.ModelSerializer):
     """Serializer for the School tenant model."""
+
+    logo = SchoolLogoField(required=False, allow_null=True)
 
     class Meta:
         model = School

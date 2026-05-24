@@ -93,6 +93,18 @@ export default function SchoolSettingsPage() {
     reader.readAsDataURL(file);
   }
 
+  async function handleToggleShowLogo() {
+    const newVal = !school.show_logo;
+    setSchool(prev => ({ ...prev, show_logo: newVal }));
+    try {
+      await apiClient.patch('/school/', { show_logo: newVal });
+    } catch {
+      // revert optimistic update
+      setSchool(prev => ({ ...prev, show_logo: !newVal }));
+      showToast('Failed to update logo setting.', 'error');
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     setErrors({});
@@ -224,57 +236,63 @@ export default function SchoolSettingsPage() {
 
         {/* Logo */}
         <Section title="School Logo" icon={Globe}>
-          <div className="flex items-start gap-6 flex-wrap">
-            <div className="shrink-0">
-              {logoPreview ? (
-                <img
-                  src={logoPreview}
-                  alt="School logo"
-                  className="w-24 h-24 rounded-full object-contain border-2 border-slate-200 dark:border-slate-600 bg-white"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-700">
-                  <Building2 size={28} className="text-slate-300 dark:text-slate-500" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                Upload a school crest or logo. It will appear on report cards.<br />
-                Accepted: JPEG, PNG, WebP, GIF &mdash; max 5 MB. Recommended: square, at least 200×200 px.
-              </p>
-              <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleLogoChange} className="hidden" />
-              <button
-                onClick={() => logoRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-              >
-                <Upload size={14} /> {logoPreview ? 'Change Logo' : 'Upload Logo'}
-              </button>
-              {logoFile && <p className="mt-2 text-xs text-green-600 dark:text-green-400">New logo selected: {logoFile.name}</p>}
-              {logoError
-                ? <p className="mt-2 flex items-center gap-1 text-xs text-red-600"><span>⚠</span> {logoError}</p>
-                : <FieldError message={errors.logo?.[0]} />
-              }
-              <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+          {/* Toggle — always visible at top, auto-saves immediately */}
+          <div className="flex items-center gap-3 mb-5">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!school.show_logo}
+              onClick={handleToggleShowLogo}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                school.show_logo ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                school.show_logo ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+            <span className="text-sm text-slate-700 dark:text-slate-300">
+              Show logo on documents &amp; reports
+            </span>
+          </div>
+
+          {/* Upload area — only shown when toggle is ON */}
+          {school.show_logo && (
+            <div className="flex items-start gap-6 flex-wrap">
+              <div className="shrink-0">
+                {logoPreview ? (
+                  <img
+                    src={logoPreview}
+                    alt="School logo"
+                    className="w-24 h-24 rounded-full object-contain border-2 border-slate-200 dark:border-slate-600 bg-white"
+                    onError={() => setLogoPreview(null)}
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-700">
+                    <Building2 size={28} className="text-slate-300 dark:text-slate-500" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                  Upload a school crest or logo. It will appear on report cards.<br />
+                  Accepted: JPEG, PNG, WebP, GIF &mdash; max 5 MB. Recommended: square, at least 200×200 px.
+                </p>
+                <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleLogoChange} className="hidden" />
                 <button
-                  type="button"
-                  role="switch"
-                  aria-checked={!!school.show_logo}
-                  onClick={() => handleChange('show_logo', !school.show_logo)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
-                    school.show_logo ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
-                  }`}
+                  onClick={() => logoRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    school.show_logo ? 'translate-x-6' : 'translate-x-1'
-                  }`} />
+                  <Upload size={14} /> {logoPreview ? 'Change Logo' : 'Upload Logo'}
                 </button>
-                <span className="text-sm text-slate-700 dark:text-slate-300">
-                  Show logo on documents &amp; reports
-                </span>
+                {logoFile && <p className="mt-2 text-xs text-green-600 dark:text-green-400">New logo selected: {logoFile.name}</p>}
+                {logoError
+                  ? <p className="mt-2 flex items-center gap-1 text-xs text-red-600"><span>⚠</span> {logoError}</p>
+                  : <FieldError message={errors.logo?.[0]} />
+                }
               </div>
             </div>
-          </div>
+          )}
         </Section>
       </div>
     </div>

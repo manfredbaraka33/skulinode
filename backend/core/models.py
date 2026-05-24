@@ -73,7 +73,7 @@ class School(models.Model):
     po_box = models.CharField(max_length=50, blank=True, verbose_name='P.O. Box')
     logo = models.ImageField(upload_to='school_logos/', null=True, blank=True, verbose_name='Logo')
     show_logo = models.BooleanField(
-        default=True,
+        default=False,
         verbose_name='Show Logo on Documents',
         help_text='When enabled, the school logo appears on printed reports and PDFs.',
     )
