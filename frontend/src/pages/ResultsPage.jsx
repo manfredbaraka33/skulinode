@@ -139,6 +139,7 @@ export default function ResultsPage() {
   const [showPublish, setShowPublish]     = useState(false);
   const [showSMS, setShowSMS]             = useState(false);
   const [isPublished, setIsPublished]     = useState(false);
+  const [combinedPublishMap, setCombinedPublishMap] = useState({});
   const [publishLoading, setPublishLoading] = useState(false);
   const [unlockingSubject, setUnlockingSubject] = useState(null); // subject_id being unlocked
 
@@ -152,6 +153,12 @@ export default function ResultsPage() {
     }));
   const combinedWeightTotal = selectedCombinedAssessments
     .reduce((acc, item) => acc + (Number.isFinite(item.weight) ? item.weight : 0), 0);
+  const combinedPublishedCount = selectedCombinedAssessments.filter(
+    a => combinedPublishMap[String(a.assessment_id)]
+  ).length;
+  const allCombinedPublished = selectedCombinedAssessments.length > 0
+    && combinedPublishedCount === selectedCombinedAssessments.length;
+  const anyCombinedPublished = combinedPublishedCount > 0;
 
   useEffect(() => {
     Promise.all([
@@ -214,10 +221,51 @@ export default function ResultsPage() {
       setResults(res.data);
       setSubmissionStats([]);
       setIsPublished(false);
+
+      const publicationChecks = await Promise.allSettled(
+        selectedCombinedAssessments.map(a => apiClient.get('/academy/publish/', {
+          params: { assessment: a.assessment_id, stream },
+        }))
+      );
+      const statusMap = {};
+      publicationChecks.forEach((result, index) => {
+        const key = String(selectedCombinedAssessments[index].assessment_id);
+        statusMap[key] = result.status === 'fulfilled' && Boolean(result.value?.data?.is_published);
+      });
+      setCombinedPublishMap(statusMap);
     } catch (e) {
       showToast(e.response?.data?.error ?? 'Failed to load combined results.', 'error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCombinedUnpublish() {
+    if (!stream || selectedCombinedAssessments.length === 0) return;
+    setPublishLoading(true);
+    try {
+      const responses = await Promise.allSettled(
+        selectedCombinedAssessments.map(a => apiClient.delete('/academy/publish/', {
+          data: { assessment: a.assessment_id, stream },
+        }))
+      );
+
+      const successCount = responses.filter(r => r.status === 'fulfilled').length;
+      if (!successCount) {
+        showToast('No combined results were unpublished.', 'error');
+        return;
+      }
+
+      const nextMap = { ...combinedPublishMap };
+      selectedCombinedAssessments.forEach(a => {
+        nextMap[String(a.assessment_id)] = false;
+      });
+      setCombinedPublishMap(nextMap);
+      showToast(`Unpublished ${successCount} assessment result${successCount === 1 ? '' : 's'}.`);
+    } catch (e) {
+      showToast(e.response?.data?.error ?? 'Failed to unpublish combined results.', 'error');
+    } finally {
+      setPublishLoading(false);
     }
   }
 
@@ -574,6 +622,27 @@ export default function ResultsPage() {
                     <Globe size={14} /> Publish Results
                     {!canDownload && <span className="ml-1 text-xs bg-slate-300 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
                   </button>
+                ) : mode === 'combined' && anyCombinedPublished ? (
+                  <button onClick={handleCombinedUnpublish} disabled={publishLoading || !canDownload}
+                    title={!canDownload ? 'Upgrade to Standard or Pro to manage publication' : undefined}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg transition
+                      ${!canDownload
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-70'
+                        : 'bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-60'}`}>
+                    {publishLoading ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />} Unpublish Combined
+                    {!canDownload && <span className="ml-1 text-xs bg-slate-300 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
+                  </button>
+                ) : mode === 'combined' ? (
+                  <button onClick={() => canDownload && setShowPublish(true)}
+                    disabled={!canDownload}
+                    title={!canDownload ? 'Upgrade to Standard or Pro to publish results' : undefined}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg transition
+                      ${!canDownload
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-70'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+                    <Globe size={14} /> Publish Combined
+                    {!canDownload && <span className="ml-1 text-xs bg-slate-300 text-slate-500 px-1.5 py-0.5 rounded-full">Upgrade</span>}
+                  </button>
                 ) : null}
               </>
             )}
@@ -914,6 +983,20 @@ export default function ResultsPage() {
 
       {!loading && results && mode === 'combined' && (
         <div className="space-y-5">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium ${
+            allCombinedPublished
+              ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+              : anyCombinedPublished
+                ? 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300'
+                : 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-300'
+          }`}>
+            <Globe size={15} />
+            {allCombinedPublished
+              ? 'All selected assessments are published for this stream.'
+              : anyCombinedPublished
+                ? `Partially published (${combinedPublishedCount}/${selectedCombinedAssessments.length}).`
+                : 'Selected assessments are not yet published.'}
+          </div>
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3 flex-wrap">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -1149,11 +1232,26 @@ export default function ResultsPage() {
       {showPublish && (
         <PublishModal
           assessmentId={assessment}
+          assessments={mode === 'combined' ? selectedCombinedAssessments : []}
           streamId={stream}
           streamLabel={selectedStreamLabel}
           assessmentName={selectedAssessmentName}
+          mode={mode}
           onClose={() => setShowPublish(false)}
-          onSuccess={() => { setShowPublish(false); setIsPublished(true); showToast('Results published! Teachers can now view them.'); }}
+          onSuccess={(publishedIds = []) => {
+            setShowPublish(false);
+            if (mode === 'combined') {
+              const nextMap = { ...combinedPublishMap };
+              publishedIds.forEach(id => {
+                nextMap[String(id)] = true;
+              });
+              setCombinedPublishMap(nextMap);
+              showToast('Combined results published for selected assessments.');
+            } else {
+              setIsPublished(true);
+              showToast('Results published! Teachers can now view them.');
+            }
+          }}
           onError={m => showToast(m, 'error')}
         />
       )}
@@ -1174,23 +1272,70 @@ export default function ResultsPage() {
 }
 
 /* ── Publish Modal ────────────────────────────────────────────────────────── */
-function PublishModal({ assessmentId, streamId, streamLabel, assessmentName, onClose, onSuccess, onError }) {
+function PublishModal({
+  assessmentId,
+  assessments = [],
+  streamId,
+  streamLabel,
+  assessmentName,
+  mode = 'single',
+  onClose,
+  onSuccess,
+  onError,
+}) {
   const [loading, setLoading] = useState(false);
   async function confirm() {
     setLoading(true);
     try {
+      if (mode === 'combined') {
+        if (assessments.length < 2) {
+          onError('Select at least two assessments before publishing combined results.');
+          return;
+        }
+
+        const responses = await Promise.allSettled(
+          assessments.map(a => apiClient.post('/academy/publish/', {
+            assessment: a.assessment_id,
+            stream: streamId,
+          }))
+        );
+
+        const publishedIds = assessments
+          .filter((_, index) => responses[index].status === 'fulfilled')
+          .map(a => a.assessment_id);
+
+        if (!publishedIds.length) {
+          onError('Failed to publish combined results.');
+          return;
+        }
+
+        onSuccess(publishedIds);
+        return;
+      }
+
       await apiClient.post('/academy/publish/', { assessment: assessmentId, stream: streamId });
-      onSuccess();
+      onSuccess([assessmentId]);
     } catch (e) {
       onError(e.response?.data?.error ?? 'Failed to publish.');
     } finally { setLoading(false); }
   }
   return (
-    <Modal title="Publish Results" onClose={onClose}>
+    <Modal title={mode === 'combined' ? 'Publish Combined Results' : 'Publish Results'} onClose={onClose}>
       <div className="space-y-4">
         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-300">
           <p>You are about to publish results for:</p>
-          <p className="font-bold mt-1">{streamLabel} — {assessmentName}</p>
+          {mode === 'combined' ? (
+            <>
+              <p className="font-bold mt-1">{streamLabel} — Combined Selection</p>
+              <ul className="mt-2 space-y-1 text-xs">
+                {assessments.map(a => (
+                  <li key={a.assessment_id}>{a.name} ({a.weight}%)</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="font-bold mt-1">{streamLabel} — {assessmentName}</p>
+          )}
           <p className="mt-2 text-xs text-blue-600">This will make results visible to teachers and enable report card printing.</p>
         </div>
         <div className="flex gap-3 justify-end">
