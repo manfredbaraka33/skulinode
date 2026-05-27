@@ -88,16 +88,43 @@ class RegisterSchoolView(APIView):
         result = serializer.save()
         school = result['school']
         admin = result['admin']
+
         return Response(
             {
-                'message': 'School registered successfully.',
+                'message': 'School registered successfully. Your account is pending admin verification.',
                 'school_id': school.id,
                 'school_name': school.name,
                 'admin_id': admin.id,
                 'admin_email': admin.email,
+                'admin_username': admin.username,
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class CheckSchoolVerificationView(APIView):
+    """
+    GET /api/v1/auth/check-verification/?username=<username>
+
+    Public endpoint — returns whether the school that owns a given username
+    has been verified by the admin. Used by the pending-verification page to
+    poll for approval without exposing any sensitive data.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        username = request.query_params.get('username', '').strip()
+        if not username:
+            return Response({'verified': False})
+
+        try:
+            user = CustomUser.objects.select_related('school').get(username=username)
+        except CustomUser.DoesNotExist:
+            return Response({'verified': False})
+
+        verified = bool(user.school and user.school.is_verified)
+        return Response({'verified': verified})
 
 
 class StaffListCreateView(ListCreateAPIView):

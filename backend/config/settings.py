@@ -163,3 +163,4 @@ SMS_DRY_RUN = config('SMS_DRY_RUN', default=True, cast=bool)
 NEXTSMS_USERNAME = config('NEXTSMS_USERNAME', default='')
 NEXTSMS_PASSWORD = config('NEXTSMS_PASSWORD', default='')
 NEXTSMS_SENDER_ID = config('NEXTSMS_SENDER_ID', default='')
+

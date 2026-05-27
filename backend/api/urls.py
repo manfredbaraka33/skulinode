@@ -3,6 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
 from core.views import (
     ChangeOwnPasswordView,
+    CheckSchoolVerificationView,
     CustomTokenObtainPairView,
     RegisterSchoolView,
     RegisterUserView,
@@ -17,11 +18,12 @@ from api.views import FeedbackCreateView
 
 urlpatterns = [
     # JWT auth endpoints
-    path('auth/token/',         CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('auth/token/refresh/', TokenRefreshView.as_view(),          name='token_refresh'),
-    path('auth/token/verify/',  TokenVerifyView.as_view(),           name='token_verify'),
-    path('auth/register/',         RegisterUserView.as_view(),          name='register'),
-    path('auth/register-school/',  RegisterSchoolView.as_view(),        name='register_school'),
+    path('auth/token/',                CustomTokenObtainPairView.as_view(),       name='token_obtain_pair'),
+    path('auth/token/refresh/',        TokenRefreshView.as_view(),               name='token_refresh'),
+    path('auth/token/verify/',         TokenVerifyView.as_view(),                name='token_verify'),
+    path('auth/register/',             RegisterUserView.as_view(),               name='register'),
+    path('auth/register-school/',      RegisterSchoolView.as_view(),             name='register_school'),
+    path('auth/check-verification/',   CheckSchoolVerificationView.as_view(),    name='check_verification'),
 
     # Core app endpoints
     path('user/profile/',          UserProfileView.as_view(),          name='user_profile'),

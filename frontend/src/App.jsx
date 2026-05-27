@@ -20,6 +20,7 @@ import StaffResultsPage from './pages/StaffResultsPage';
 import ProfilePage from './pages/ProfilePage';
 import ContactPage from './pages/ContactPage';
 import FeedbackPage from './pages/FeedbackPage';
+import PendingVerification from './pages/PendingVerification';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           {/* Public */}
           <Route path="/login" element={<Login />} />
           <Route path="/register-school" element={<RegisterSchool />} />
+          <Route path="/pending-verification" element={<PendingVerification />} />
 
           {/* Protected layout */}
           <Route

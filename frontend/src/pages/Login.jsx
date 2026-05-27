@@ -27,8 +27,18 @@ export default function Login() {
       }
       navigate(`/${authData.schoolSlug}/dashboard`, { replace: true });
     } catch (err) {
-      const detail = err.response?.data?.detail;
-      setServerError(detail ?? 'Invalid username or password.');
+      const data = err.response?.data ?? {};
+      if (data.code === 'school_pending_verification') {
+        // Store username so the pending page can poll for approval
+        localStorage.setItem('skulinode_pending_username', JSON.stringify(username));
+        navigate('/pending-verification', { replace: true, state: { username } });
+        return;
+      }
+      const message =
+        data.message ??
+        (typeof data.detail === 'string' ? data.detail : null) ??
+        'Invalid username or password.';
+      setServerError(message);
     }
   }
 

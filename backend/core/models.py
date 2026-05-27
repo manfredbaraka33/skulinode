@@ -81,6 +81,14 @@ class School(models.Model):
         default=True,
         verbose_name='Is Active',
     )
+    is_verified = models.BooleanField(
+        default=False,
+        verbose_name='Is Verified',
+        help_text=(
+            'Manually toggled by admin after reviewing the school registration. '
+            'Unverified schools are blocked from logging in.'
+        ),
+    )
 
     PLAN_CHOICES = [
         ('free', 'Free'),

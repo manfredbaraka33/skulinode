@@ -1,7 +1,9 @@
 import re
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from core.models import CustomUser, School
@@ -110,6 +112,46 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """JWT pair serializer with extra SkuliNode claims embedded in the token."""
 
+    def validate(self, attrs):
+        User = get_user_model()
+        username = attrs.get(self.username_field, '').strip()
+        password = attrs.get('password', '')
+
+        # --- Meaningful pre-flight checks (username enumeration acceptable in school SaaS) ---
+        try:
+            user = User.objects.select_related('school').get(username=username)
+        except User.DoesNotExist:
+            raise AuthenticationFailed({
+                'code': 'user_not_found',
+                'message': 'No account found with this username.',
+            })
+
+        if not user.check_password(password):
+            raise AuthenticationFailed({
+                'code': 'invalid_password',
+                'message': 'Incorrect password. Please try again.',
+            })
+
+        if not user.is_active:
+            raise AuthenticationFailed({
+                'code': 'account_inactive',
+                'message': 'This account has been deactivated. Contact your school administrator.',
+            })
+
+        # Superusers (platform staff) bypass school verification entirely.
+        if not user.is_superuser and user.school_id is not None:
+            if not user.school.is_verified:
+                raise PermissionDenied(detail={
+                    'code': 'school_pending_verification',
+                    'message': (
+                        'Your school registration is pending admin verification. '
+                        'You will receive access once approved.'
+                    ),
+                })
+
+        # All checks passed — let SimpleJWT generate & return the token pair.
+        return super().validate(attrs)
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
@@ -121,6 +163,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['school_id'] = user.school_id
         token['school_name'] = user.school.name if user.school else ''
         token['is_superuser'] = user.is_superuser
+        token['school_is_verified'] = user.school.is_verified if user.school else True
         return token
 
 
@@ -190,6 +233,9 @@ class SchoolRegistrationSerializer(serializers.Serializer):
     """
     Genesis serializer — creates a School and its first Admin user atomically.
     If either record fails to save, the entire operation is rolled back.
+
+    Uniqueness is intentionally scoped to *verified* schools/users only.
+    Unverified pending registrations do not block legitimate sign-ups.
     """
 
     # --- School fields ---
@@ -202,6 +248,7 @@ class SchoolRegistrationSerializer(serializers.Serializer):
 
     # --- Admin user fields ---
     email = serializers.EmailField()
+    admin_phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, min_length=8)
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
@@ -214,23 +261,31 @@ class SchoolRegistrationSerializer(serializers.Serializer):
                 'Expected formats: S.NNNN (secondary), SS.NNNN, AS.NNNN (A-level), '
                 'PS-NNNN or P-NNNN (primary). Example: S.0123'
             )
-        if School.objects.filter(registration_number__iexact=value).exists():
+        # Only block if a *verified* school already holds this reg number.
+        if School.objects.filter(registration_number__iexact=value, is_verified=True).exists():
             raise serializers.ValidationError(
-                'A school with this registration number already exists.'
+                'A verified school with this registration number already exists.'
             )
         return value.upper()
 
     def validate_school_name(self, value):
-        if School.objects.filter(name__iexact=value.strip()).exists():
+        # Only block if a *verified* school already uses this name.
+        if School.objects.filter(name__iexact=value.strip(), is_verified=True).exists():
             raise serializers.ValidationError(
-                'A school with this name already exists.'
+                'A verified school with this name already exists.'
             )
         return value.strip()
 
     def validate_email(self, value):
-        if CustomUser.objects.filter(email__iexact=value).exists():
+        # Only block if a verified school's admin already owns this email.
+        # Teacher/staff emails are intentionally not enforced here.
+        if CustomUser.objects.filter(
+            email__iexact=value,
+            role=CustomUser.Role.ADMIN,
+            school__is_verified=True,
+        ).exists():
             raise serializers.ValidationError(
-                'A user with this email already exists.'
+                'An admin account with this email already exists for a verified school.'
             )
         return value.lower()
 
@@ -260,6 +315,7 @@ class SchoolRegistrationSerializer(serializers.Serializer):
             password=validated_data['password'],
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
+            phone_number=validated_data.get('admin_phone', ''),
             school=school,
             role=CustomUser.Role.ADMIN,
         )

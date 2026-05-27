@@ -46,7 +46,6 @@ export default function RegisterSchool() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [serverError, setServerError] = useState(null);
-  const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -57,7 +56,7 @@ export default function RegisterSchool() {
   } = useForm({ mode: 'onTouched' });
 
   const step0Fields = ['school_name', 'registration_number', 'school_type', 'region', 'district'];
-  const step1Fields = ['first_name', 'last_name', 'email', 'password'];
+  const step1Fields = ['first_name', 'last_name', 'email', 'admin_phone', 'password'];
 
   async function goNext() {
     const valid = await trigger(step0Fields);
@@ -67,9 +66,10 @@ export default function RegisterSchool() {
   async function onSubmit(data) {
     setServerError(null);
     try {
-      await apiClient.post('/auth/register-school/', data);
-      setSuccess(true);
-      setTimeout(() => navigate('/login'), 3000);
+      const res = await apiClient.post('/auth/register-school/', data);
+      const adminUsername = res.data.admin_username ?? null;
+      localStorage.setItem('skulinode_pending_username', JSON.stringify(adminUsername));
+      navigate('/pending-verification', { replace: true, state: { username: adminUsername } });
     } catch (err) {
       const detail = err.response?.data;
       if (detail && typeof detail === 'object') {
@@ -86,19 +86,6 @@ export default function RegisterSchool() {
     }
   }
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full text-center">
-          <CheckCircle size={56} className="text-emerald-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">School Registered!</h2>
-          <p className="text-slate-500 text-sm">
-            Your school has been created successfully. Redirecting you to login…
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -251,18 +238,33 @@ export default function RegisterSchool() {
                   </InputField>
                 </div>
 
-                <InputField label="Email Address" error={errors.email}>
-                  <input
-                    type="email"
-                    placeholder="admin@school.ac.tz"
-                    className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-blue-500
-                      ${errors.email ? 'border-red-400' : 'border-slate-300'}`}
-                    {...register('email', {
-                      required: 'Email is required.',
-                      pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address.' },
-                    })}
-                  />
-                </InputField>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <InputField label="Email Address" error={errors.email}>
+                    <input
+                      type="email"
+                      placeholder="admin@school.ac.tz"
+                      className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-blue-500
+                        ${errors.email ? 'border-red-400' : 'border-slate-300'}`}
+                      {...register('email', {
+                        required: 'Email is required.',
+                        pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address.' },
+                      })}
+                    />
+                  </InputField>
+
+                  <InputField label="Phone Number" error={errors.admin_phone}>
+                    <input
+                      type="tel"
+                      placeholder="e.g. 0752303770"
+                      className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-blue-500
+                        ${errors.admin_phone ? 'border-red-400' : 'border-slate-300'}`}
+                      {...register('admin_phone', {
+                        required: 'Phone number is required.',
+                        pattern: { value: /^[0-9+\s\-]{7,20}$/, message: 'Enter a valid phone number.' },
+                      })}
+                    />
+                  </InputField>
+                </div>
 
                 <InputField label="Password" error={errors.password}>
                   <div className="relative">
