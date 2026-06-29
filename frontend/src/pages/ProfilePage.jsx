@@ -135,7 +135,7 @@ function SignatureUpload() {
   }
 
   if (loading) return null; 
-  if (role !== "ADMIN" && role !== "TEACHER") return null;
+  if (role === "PARENT") return null;
 
   return (
     <div className="mt-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
