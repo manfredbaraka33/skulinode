@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Save, Loader2, Building2, Phone, Globe, MapPin, Upload, AlertTriangle } from 'lucide-react';
+import { Settings, Save, Loader2, Building2, Phone, Globe, MapPin, Upload, AlertTriangle, Users } from 'lucide-react';
 import { PageHeader, Toast, FieldError, useToast } from '../components/ui';
 import apiClient from '../api/axios';
 
@@ -61,6 +61,24 @@ export default function SchoolSettingsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+
+      // 1. Ensure state is initialized as an array
+    const [staffList, setStaffList] = useState([]);
+
+    // 2. In your useEffect, make sure you are setting the data correctly
+    useEffect(() => {
+      Promise.all([
+        apiClient.get('/school/'),
+        apiClient.get('/users/') // Ensure this returns a plain list []
+      ]).then(([sRes, uRes]) => {
+        setSchool(sRes.data);
+        // If uRes.data is an object (like {results: [...]}), use uRes.data.results
+        setStaffList(Array.isArray(uRes.data) ? uRes.data : (uRes.data.results || []));
+        setLoading(false);
+      });
+    }, []);
+
+
   function handleChange(field, val) {
     setSchool(prev => ({ ...prev, [field]: val }));
     setErrors(prev => { const e = { ...prev }; delete e[field]; return e; });
@@ -120,8 +138,8 @@ export default function SchoolSettingsPage() {
         payload.append('logo', logoFile);
         config = { headers: { 'Content-Type': 'multipart/form-data' } };
       } else {
-        const { name, school_type, region, district, ward, phone, email, website, po_box, show_logo } = school;
-        payload = { name, school_type, region, district, ward, phone, email, website, po_box, show_logo };
+        const { name, school_type, region, district, ward, phone, email, website, po_box, show_logo, headmaster, academic_master, deputy_head } = school;
+        payload = { name, school_type, region, district, ward, phone, email, website, po_box, show_logo, headmaster, academic_master, deputy_head };
       }
 
       const res = await apiClient.patch('/school/', payload, config);
@@ -233,6 +251,32 @@ export default function SchoolSettingsPage() {
             </Field>
           </div>
         </Section>
+
+
+
+        <Section title="School Leadership" icon={Users}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[
+            { label: 'Headmaster', field: 'headmaster' },
+            { label: 'Academic Master', field: 'academic_master' },
+            { label: 'Deputy Head', field: 'deputy_head' }
+          ].map(({ label, field }) => (
+            <Field key={field} label={label}>
+              <select
+                className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700"
+                value={school[field] ?? ''}
+                onChange={e => handleChange(field, e.target.value || null)}
+              >
+                <option value="">Select {label}...</option>
+                {staffList.map(u => (
+                  <option key={u.id} value={u.id}>{u.full_name}</option>
+                ))}
+              </select>
+            </Field>
+          ))}
+        </div>
+      </Section>
+
 
         {/* Logo */}
         <Section title="School Logo" icon={Globe}>

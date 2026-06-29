@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 const ROLES = [
   { value: 'ADMIN',    label: 'School Admin' },
   { value: 'TEACHER',  label: 'Teacher' },
+  { value: 'BURSAR',  label: 'Bursar' },
   { value: 'PARENT',   label: 'Parent/Guardian' },
   { value: 'STUDENT',  label: 'Student' },
 ];

@@ -1237,6 +1237,11 @@ export default function ResultsPage() {
           streamLabel={selectedStreamLabel}
           assessmentName={selectedAssessmentName}
           mode={mode}
+          studentsData={mode === 'combined' ? results?.students : null}
+          subjects={results?.subjects ?? []}
+          schoolType={results?.school_type ?? ''}
+          academicYear={selectedAssessmentYear || new Date().getFullYear()}
+          treatMissingAsZero={treatMissingAsZero}
           onClose={() => setShowPublish(false)}
           onSuccess={(publishedIds = []) => {
             setShowPublish(false);
@@ -1279,11 +1284,17 @@ function PublishModal({
   streamLabel,
   assessmentName,
   mode = 'single',
+  studentsData = null,
+  subjects = [],
+  schoolType = '',
+  academicYear,
+  treatMissingAsZero = false,
   onClose,
   onSuccess,
   onError,
 }) {
-  const [loading, setLoading] = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const [snapshotName, setSnapshotName] = useState('');
   async function confirm() {
     setLoading(true);
     try {
@@ -1309,7 +1320,26 @@ function PublishModal({
           return;
         }
 
+        // Save snapshot so report cards can be generated without re-entering weights
+        if (studentsData && studentsData.length > 0) {
+          try {
+            await apiClient.post('/academy/combined-snapshots/publish/', {
+              name: snapshotName.trim() || undefined,
+              stream: streamId,
+              academic_year: academicYear,
+              components: assessments.map(a => ({ id: a.assessment_id, name: a.name, weight: a.weight })),
+              subjects,
+              treat_missing_as_zero: treatMissingAsZero,
+              school_type: schoolType,
+              students: studentsData,
+            });
+          } catch {
+            console.warn('Snapshot save failed — results still published.');
+          }
+        }
+
         onSuccess(publishedIds);
+        return;
         return;
       }
 
@@ -1329,7 +1359,19 @@ function PublishModal({
               <p className="font-bold mt-1">{streamLabel} — Combined Selection</p>
               <ul className="mt-2 space-y-1 text-xs">
                 {assessments.map(a => (
+                  <>
                   <li key={a.assessment_id}>{a.name} ({a.weight}%)</li>
+                  <div className="mt-3">
+                    <label className="block text-xs text-blue-700 mb-1">Jina la Matokeo (hiari)</label>
+                    <input type="text" value={snapshotName}
+                      onChange={e => setSnapshotName(e.target.value)}
+                      placeholder={`Matokeo ya Pamoja ${academicYear ?? ''}`}
+                      className="w-full border border-blue-200 rounded-lg px-3 py-1.5 text-sm bg-white text-slate-800"/>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Itaonekana kwenye "Zilizohifadhiwa" ukurasa wa kadi za ripoti.
+                    </p>
+                  </div>
+                  </>
                 ))}
               </ul>
             </>

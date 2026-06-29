@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from core.models import CustomUser, School
 from core.serializers import (
@@ -249,3 +250,81 @@ class SchoolDetailView(RetrieveUpdateAPIView):
     def partial_update(self, request, *args, **kwargs):
         kwargs['partial'] = True
         return self.update(request, *args, **kwargs)
+
+
+class SignatureUploadView(APIView):
+    """
+    POST /api/v1/auth/signature/
+    Upload or replace the current user's signature image.
+    DELETE /api/v1/auth/signature/
+    Remove the signature.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        file = request.FILES.get('signature')
+        if not file:
+            return Response({'error': 'No file provided.'}, status=400)
+            
+        allowed = ['image/jpeg', 'image/png', 'image/webp']
+        if file.content_type not in allowed:
+            return Response({'error': 'Only JPEG, PNG or WEBP allowed.'}, status=400)
+        if file.size > 2 * 1024 * 1024:
+            return Response({'error': 'File must be under 2MB.'}, status=400)
+            
+        user = request.user
+        if user.signature:
+            try:
+                user.signature.delete(save=False)
+            except Exception:
+                pass
+
+        from PIL import Image
+        import io
+        from django.core.files.base import ContentFile
+
+        try:
+            with Image.open(file) as img:
+                # 1. Convert to RGBA and apply simple color-based background removal
+                img = img.convert("RGBA")
+                datas = img.getdata()
+                newData = []
+                for item in datas:
+                    # If pixel is mostly white/light (background), make it transparent
+                    if item[0] > 200 and item[1] > 200 and item[2] > 200:
+                        newData.append((255, 255, 255, 0))
+                    else:
+                        # Convert dark ink pixels to pure black for the "superfine" look
+                        newData.append((0, 0, 0, 255))
+                
+                img.putdata(newData)
+
+                # 2. Save as high-quality transparent PNG
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG')
+                buffer.seek(0)
+                processed_file = ContentFile(buffer.getvalue(), name=f"{user.id}_signature.png")
+                
+                user.signature = processed_file
+        except Exception:
+            # Fallback to original file if processing fails
+            user.signature = file
+
+        user.save(update_fields=['signature'])
+        
+        return Response({
+            'signature_url': request.build_absolute_uri(user.signature.url)
+            if user.signature else None
+        })
+
+    def delete(self, request):
+        user = request.user
+        if user.signature:
+            try:
+                user.signature.delete(save=False)
+            except Exception:
+                pass
+            user.signature = None
+            user.save(update_fields=['signature'])
+        return Response({'deleted': True})

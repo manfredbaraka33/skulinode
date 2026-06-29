@@ -49,13 +49,13 @@ export default function ContactPage() {
           href="https://wa.me/255712750468"
           color="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
         />
-        <ContactCard
+        {/* <ContactCard
           icon={Mail}
           label="Email"
           value="support@skulinode.com"
           href="mailto:support@skulinode.com"
           color="bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
-        />
+        /> */}
       </div>
 
       <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-5 py-4 text-sm text-blue-700 dark:text-blue-300">

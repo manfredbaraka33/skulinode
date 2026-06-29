@@ -97,8 +97,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'full_name',
+            'signature',
             'school',
             'role',
+            'roles',
             'phone_number',
             'date_of_birth',
             'profile_picture',
@@ -160,6 +162,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['email'] = user.email
         token['full_name'] = user.full_name
         token['role'] = user.role
+        token['roles'] = user.roles
         token['school_id'] = user.school_id
         token['school_name'] = user.school.name if user.school else ''
         token['is_superuser'] = user.is_superuser
@@ -189,7 +192,9 @@ class StaffCreateSerializer(serializers.ModelSerializer):
     def validate_role(self, value):
         # Admins cannot create super-level accounts
         if value not in (CustomUser.Role.ADMIN, CustomUser.Role.TEACHER,
-                         CustomUser.Role.PARENT, CustomUser.Role.STUDENT):
+                         CustomUser.Role.PARENT, CustomUser.Role.STUDENT,
+                         CustomUser.Role.BURSAR
+                         ):
             raise serializers.ValidationError('Invalid role.')
         return value
 

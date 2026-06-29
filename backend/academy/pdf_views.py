@@ -379,6 +379,28 @@ def _logo_image(school, size_mm=30):
     return None
 
 
+def _signature_image(user, width_mm=45, height_mm=18):
+    """Return an Image flowable for a user's signature, or None."""
+    if not user or not user.signature or not user.signature.name:
+        return None
+    try:
+        path = user.signature.path
+        if os.path.exists(path):
+            return Image(path, width=width_mm * mm, height=height_mm * mm)
+    except Exception:
+        pass
+    try:
+        import urllib.request
+        url = user.signature.url
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            img_bytes = io.BytesIO(resp.read())
+        return Image(img_bytes, width=width_mm * mm, height=height_mm * mm)
+    except Exception:
+        pass
+    return None
+
+
+
 def _school_header(school, title, usable_width, compact=False):
     """
     Two-column header: logo left, school name + location + report title right.
@@ -1349,6 +1371,15 @@ class ReportCardsPDFView(APIView):
             return Response({'error': 'assessment and stream are required.'}, status=400)
 
         data = _fetch_results_data(request)
+        # Fetch stored comments for this stream + assessment
+        from academy.models import StudentComment as SC
+        comments_map = {}
+        for sc in SC.objects.filter(
+            school=data['school'],
+            assessment_id=assessment_id,
+            student__stream_id=stream_id,
+        ):
+            comments_map.setdefault(sc.student_id, {})[sc.role] = sc.comment_text
         school = data['school']
         school_type = data['school_type']
         subjects = data['subjects']
@@ -1502,17 +1533,48 @@ class ReportCardsPDFView(APIView):
             story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e2e8f0'),
                                     spaceBefore=3, spaceAfter=3))
 
+        
+
+            student_comments = comments_map.get(student['student_id'], {})
+            role_map = {
+                'Mwalimu wa Darasa':  student_comments.get('class_teacher', ''),
+                'Mwalimu wa Taaluma': student_comments.get('academic_master', ''),
+                'Mkuu wa Shule':      student_comments.get('headmaster', ''),
+            }
+
+            # 1. Fetch the Class Master specifically for this stream
+            from academy.models import ClassMasterAssignment
+            class_master_assignment = ClassMasterAssignment.objects.filter(
+                stream_id=stream_id, 
+                academic_year=data['assessment_year'] # Use the year from your context
+            ).first()
+
+            # 2. Map the official labels to the actual users stored in the school
+            sig_user_map = {
+                'Mwalimu wa Darasa': class_master_assignment.teacher if class_master_assignment else None,
+                'Mwalimu wa Taaluma': school.academic_master,
+                'Mkuu wa Shule': school.headmaster,
+            }
+
             comment_w = W * 0.64
             sig_w = W - comment_w
             for label in staff_labels:
+                comment_text = role_map.get(label, '')
+                sig_img = _signature_image(sig_user_map.get(label))
                 staff_row = Table(
                     [
                         [Paragraph(label, lbl_style), ''],
                         [Paragraph('Maoni / Comment:', sub_style), Paragraph('Sahihi / Signature:', sub_style)],
-                        ['', ''],
+                        [
+                            Paragraph(comment_text, ParagraphStyle(
+                                'cmt', fontName='Helvetica', fontSize=8,
+                                textColor=colors.HexColor('#1e293b'),
+                            )) if comment_text else '',
+                            sig_img or '',
+                        ],
                     ],
                     colWidths=[comment_w, sig_w],
-                    rowHeights=[None, None, 20],
+                    rowHeights=[None, None, 22],
                 )
                 staff_row.setStyle(TableStyle([
                     ('SPAN',         (0, 0), (1, 0)),
@@ -1567,6 +1629,7 @@ class CombinedResultsPDFView(APIView):
                 assessment_weights=assessments,
                 treat_missing_as_zero=treat_missing_as_zero,
             )
+            
         except CombinedResultsValidationError as exc:
             return Response({'error': str(exc)}, status=400)
 
@@ -1848,22 +1911,88 @@ class CombinedReportCardsPDFView(APIView):
     permission_classes = [IsAuthenticated, IsSchoolPaidOrDownloadOnly]
 
     def post(self, request):
-        stream_id, assessments, treat_missing_as_zero, single_student_id = _combined_payload(request)
-        if not stream_id:
-            return Response({'error': 'stream is required.'}, status=400)
 
-        try:
-            combined = build_combined_results_data(
-                school=_school_of(request),
-                stream_id=stream_id,
-                assessment_weights=assessments,
-                treat_missing_as_zero=treat_missing_as_zero,
-            )
-        except CombinedResultsValidationError as exc:
-            return Response({'error': str(exc)}, status=400)
+        stream_id = None
+        data = {'assessment_year': None, 'assessment_name': 'Report Card'}
+        # Snapshot mode — load from stored combined results, no weights re-entry needed
+        snapshot_id = request.data.get('snapshot_id')
+        if snapshot_id:
+            from academy.models import CombinedResultsSnapshot
+            school = _school_of(request)
+            try:
+                snap = CombinedResultsSnapshot.objects.get(pk=snapshot_id, school=school)
+                stream_id = snap.stream_id
+            except CombinedResultsSnapshot.DoesNotExist:
+                return Response({'error': 'Snapshot not found.'}, status=404)
+            try:
+                stream_obj  = Stream.objects.select_related('class_level').get(pk=snap.stream_id)
+                stream_label = f"{stream_obj.class_level.name} {stream_obj.name}".strip()
+            except Stream.DoesNotExist:
+                stream_label = ''
+            single_student_id  = request.data.get('student_id')
+            treat_missing_as_zero = snap.treat_missing_as_zero
+            qs = snap.student_results.select_related('student').order_by('rank')
+            if single_student_id:
+                qs = qs.filter(student_id=single_student_id)
 
-        if combined.get('requires_confirmation'):
-            return Response(combined, status=200)
+            from academy.models import StudentComment as SC
+            snap_comments_map = {}
+            for sc_obj in SC.objects.filter(school=school, snapshot_id=snapshot_id):
+                snap_comments_map.setdefault(sc_obj.student_id, {})[sc_obj.role] = sc_obj.comment_text
+
+            combined = {
+                'stream_label': stream_label,
+                'school_type':  snap.school_type,
+                'subjects':     snap.subjects,
+                'assessments':  snap.components,
+                'students': [{
+                    'student_id':       sr.student_id,
+                    'display_name':     sr.student.display_name,
+                    'admission_number': sr.student.admission_number,
+                    'gender':           sr.student.gender,
+                    'rank':             sr.rank,
+                    'total_students':   sr.total_students,
+                    'total_score':      float(sr.total_score) if sr.total_score is not None else None,
+                    'average':          float(sr.average) if sr.average is not None else None,
+                    'grade':            sr.grade,
+                    'grade_remarks':    sr.grade_remarks,
+                    'points':           sr.points,
+                    'division':         sr.division,
+                    # Convert JSON string keys back to int for PDF lookup compatibility
+                    'subjects': {
+                        subj: {
+                            **sdata,
+                            'assessment_scores': {
+                                int(k) if str(k).isdigit() else k: v
+                                for k, v in (sdata.get('assessment_scores') or {}).items()
+                            }
+                        } for subj, sdata in sr.subject_data.items()
+                    },
+                    'assessment_averages': {
+                        int(k) if str(k).isdigit() else k: v
+                        for k, v in sr.assessment_averages.items()
+                    },
+                } for sr in list(qs)],
+            }
+            data = {'assessment_year': snap.academic_year, 'assessment_name': 'Snapshot'}
+        else:
+            stream_id, assessments, treat_missing_as_zero, single_student_id = _combined_payload(request)
+            if not stream_id:
+                return Response({'error': 'stream is required.'}, status=400)
+            try:
+                combined = build_combined_results_data(
+                    school=_school_of(request),
+                    stream_id=stream_id,
+                    assessment_weights=assessments,
+                    treat_missing_as_zero=treat_missing_as_zero,
+                )
+                from django.utils import timezone
+                data = {'assessment_year': request.data.get('year') or timezone.now().year, 'assessment_name': 'Combined'}
+            except CombinedResultsValidationError as exc:
+                return Response({'error': str(exc)}, status=400)
+            if combined.get('requires_confirmation'):
+                return Response(combined, status=200)
+
 
         assessments_meta = combined['assessments']
         students = combined['students']
@@ -1887,6 +2016,43 @@ class CombinedReportCardsPDFView(APIView):
         )
         width = A4[0] - 2 * margin
         story = []
+
+        from django.utils import timezone
+        target_year = data.get('assessment_year') or timezone.now().year
+
+        
+
+        # 1. Fetch the Class Master specifically for this stream
+        from academy.models import ClassMasterAssignment
+
+        # DEBUG
+        print(f"DEBUG: Looking for assignment with Stream ID: {stream_id} and Year: {target_year}")
+        
+        # Check if ANY record exists for this stream at all
+        exists_check = ClassMasterAssignment.objects.filter(stream_id=stream_id).exists()
+        print(f"DEBUG: Does any record exist for this stream? {exists_check}")
+
+        class_master_assignment = ClassMasterAssignment.objects.filter(
+            stream_id=stream_id, 
+            academic_year=target_year # Use the year from your context
+        ).first()
+        
+        
+
+        # 2. Map the official labels to the actual users stored in the school
+        sig_user_map = {
+            'Mwalimu wa Darasa': class_master_assignment.teacher if class_master_assignment else None,
+            'Mwalimu wa Taaluma': school.academic_master,
+            'Mkuu wa Shule': school.headmaster,
+            
+        }
+
+        # DEBUGGING: Print to your console to see what is happening
+        print(f"DEBUG: Target Year: {target_year}")
+        print(f"DEBUG: Assignment Found: {bool(class_master_assignment)}")
+        if class_master_assignment:
+            print(f"DEBUG: Teacher assigned: {class_master_assignment.teacher}")
+            print(f"DEBUG: Signature exists: {bool(class_master_assignment.teacher.signature if class_master_assignment.teacher else False)}")
 
         for i, student in enumerate(students):
             if i > 0:
@@ -2018,18 +2184,35 @@ class CombinedReportCardsPDFView(APIView):
 
             story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e2e8f0'),
                                     spaceBefore=3, spaceAfter=3))
+                                    
 
             comment_w = width * 0.64
             sig_w = width - comment_w
+            # Build comment map for this student (snapshot or empty)
+            _student_comments = snap_comments_map.get(student['student_id'], {}) if snapshot_id else {}
+            _role_map = {
+                'Mwalimu wa Darasa':  _student_comments.get('class_teacher', ''),
+                'Mwalimu wa Taaluma': _student_comments.get('academic_master', ''),
+                'Mkuu wa Shule':      _student_comments.get('headmaster', ''),
+            }
+
             for label in staff_labels:
+                sig_img      = _signature_image(sig_user_map.get(label))
+                comment_text = _role_map.get(label, '')
                 staff_row = Table(
                     [
                         [Paragraph(label, lbl_style), ''],
                         [Paragraph('Maoni / Comment:', sub_style), Paragraph('Sahihi / Signature:', sub_style)],
-                        ['', ''],
+                        [
+                            Paragraph(comment_text, ParagraphStyle(
+                                'ccmt', fontName='Helvetica', fontSize=8,
+                                textColor=colors.HexColor('#1e293b'),
+                            )) if comment_text else '',
+                            sig_img or '',
+                        ],
                     ],
                     colWidths=[comment_w, sig_w],
-                    rowHeights=[None, None, 20],
+                    rowHeights=[None, None, 22],
                 )
                 staff_row.setStyle(TableStyle([
                     ('SPAN', (0, 0), (1, 0)),
@@ -2058,3 +2241,291 @@ class CombinedReportCardsPDFView(APIView):
         response = HttpResponse(buf.read(), content_type='application/pdf')
         response['Content-Disposition'] = 'inline; filename="combined_report_cards.pdf"'
         return response
+
+# ── Term Circular PDF ──────────────────────────────────────────────────────────
+
+class CircularPDFView(APIView):
+    """
+    POST /api/v1/academy/circulars/<pk>/pdf/
+    Body: { stream, student_id? }
+    Generates a printable end-of-term circular per student.
+    """
+    permission_classes = [IsAuthenticated, IsSchoolPaidOrDownloadOnly]
+
+    def post(self, request, pk):
+        from academy.models import StudentFeeRecord, TermCircular
+        from core.models import CustomUser as CU
+
+        school = _school_of(request)
+
+        try:
+            circ = TermCircular.objects.get(pk=pk, school=school)
+        except TermCircular.DoesNotExist:
+            return Response({'error': 'Circular not found.'}, status=404)
+
+        stream_id         = request.data.get('stream') or circ.stream_id
+        single_student_id = request.data.get('student_id')
+
+        if not stream_id:
+            return Response({'error': 'stream is required.'}, status=400)
+
+        students = list(
+            Student.objects.filter(school=school, stream_id=stream_id)
+            .order_by('last_name', 'first_name')
+        )
+        if single_student_id:
+            students = [s for s in students if str(s.id) == str(single_student_id)]
+
+        try:
+            stream_obj  = Stream.objects.select_related('class_level').get(pk=stream_id)
+            stream_label = f"{stream_obj.class_level.name} {stream_obj.name}".strip()
+        except Stream.DoesNotExist:
+            stream_label = ''
+
+        # Fee records — current year + historical debts
+        fee_map = {}
+        if circ.show_fee_statement:
+            for rec in StudentFeeRecord.objects.filter(
+                school=school,
+                  student__stream_id=stream_id,
+                  definition__isnull=False,
+            ).select_related('definition', 'phase'):
+                is_current = str(rec.definition.academic_year) == str(circ.academic_year)
+                bucket     = 'current' if is_current else 'historical'
+                sid        = rec.student_id
+                if sid not in fee_map:
+                    fee_map[sid] = {'current': [], 'historical': []}
+                fee_map[sid][bucket].append({
+                    'name':     f"{rec.definition.name} — {rec.phase.name}",
+                    'year':     rec.definition.academic_year,
+                    'expected': float(rec.amount_expected),
+                    'paid':     float(rec.amount_paid),
+                    'balance':  float(rec.balance),
+                })
+
+        # Head of school user + signature
+        hos_user = CU.objects.filter(school=school, role='ADMIN').first()
+        hos_name = hos_user.get_full_name() if hos_user else 'Mkuu wa Shule'
+        hos_sig  = _signature_image(hos_user) if hos_user else None
+
+        buf    = io.BytesIO()
+        MARGIN = 15 * mm
+        doc    = SimpleDocTemplate(
+            buf, pagesize=A4,
+            leftMargin=MARGIN, rightMargin=MARGIN,
+            topMargin=MARGIN, bottomMargin=MARGIN,
+            title=f"{circ.title}",
+        )
+        W     = A4[0] - 2 * MARGIN
+        story = []
+
+        italic_style = ParagraphStyle(
+            'motto', fontName='Helvetica-Oblique', fontSize=9,
+            textColor=SLATE_GREY, alignment=TA_CENTER, spaceAfter=4,
+        )
+        item_heading_style = ParagraphStyle(
+            'ih', fontName='Helvetica-Bold', fontSize=10,
+            textColor=NAVY, spaceBefore=8, spaceAfter=3,
+        )
+        item_body_style = ParagraphStyle(
+            'ib', fontName='Helvetica', fontSize=9,
+            textColor=colors.HexColor('#1e293b'), leading=14, spaceAfter=4,
+        )
+        date_label_style = ParagraphStyle(
+            'dl', fontName='Helvetica-Bold', fontSize=9,
+            textColor=SLATE_GREY,
+        )
+        date_value_style = ParagraphStyle(
+            'dv', fontName='Helvetica-Bold', fontSize=11,
+            textColor=NAVY,
+        )
+        sig_label_style = ParagraphStyle(
+            'sl', fontName='Helvetica', fontSize=8,
+            textColor=SLATE_GREY, spaceAfter=2,
+        )
+        hos_name_style = ParagraphStyle(
+            'hn', fontName='Helvetica-Bold', fontSize=9,
+            textColor=colors.HexColor('#1e293b'),
+        )
+        small_style = ParagraphStyle(
+            'sm', fontName='Helvetica', fontSize=8,
+            textColor=SLATE_GREY,
+        )
+
+        def _fmt_date(d):
+            if not d: return '—'
+            months = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December']
+            return f"{d.day} {months[d.month - 1]} {d.year}"
+
+        for si, student in enumerate(students):
+            if si > 0:
+                story.append(PageBreak())
+
+            # ── Top bar ──
+            story.append(_gradient_bar(W))
+            story.append(Spacer(1, 3))
+
+            # ── School header ──
+            story.append(_school_header(school, circ.title, W, compact=True))
+            story.append(Spacer(1, 4))
+
+            # ── School motto ──
+            if circ.school_motto:
+                story.append(Paragraph(f'"{circ.school_motto}"', italic_style))
+                story.append(HRFlowable(width='60%', thickness=0.5,
+                                        color=colors.HexColor('#dbeafe'),
+                                        spaceBefore=2, spaceAfter=6, hAlign='CENTER'))
+
+            # ── Student info box ──
+            story.append(_meta_table([
+                ('Jina',         student.display_name),
+                ('Darasa',       stream_label),
+                ('Nambari',      student.admission_number or '—'),
+                ('Mwaka',        str(circ.academic_year)),
+            ], W, cols=2))
+            story.append(Spacer(1, 8))
+
+            # ── Term dates ──
+            if circ.closing_date or circ.opening_date:
+                dates_data = [[
+                    [Paragraph('TAREHE YA KUFUNGA', date_label_style),
+                     Paragraph(_fmt_date(circ.closing_date), date_value_style)],
+                    [Paragraph('TAREHE YA KUFUNGUA', date_label_style),
+                     Paragraph(_fmt_date(circ.opening_date), date_value_style)],
+                ]]
+                dates_tbl = Table(dates_data, colWidths=[W / 2, W / 2])
+                dates_tbl.setStyle(TableStyle([
+                    ('BACKGROUND',    (0, 0), (-1, -1), LIGHT_BG),
+                    ('BOX',           (0, 0), (-1, -1), 1.5, NAVY),
+                    ('LINEBETWEEN',   (0, 0), (0, -1),  0.5, BORDER_BLUE),
+                    ('TOPPADDING',    (0, 0), (-1, -1), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                    ('LEFTPADDING',   (0, 0), (-1, -1), 12),
+                    ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+                ]))
+                story.append(dates_tbl)
+                story.append(Spacer(1, 12))
+
+            # ── Dynamic content items ──
+            for item in (circ.items or []):
+                heading = (item.get('heading') or '').strip()
+                content = (item.get('content') or '').strip()
+                if heading:
+                    story.append(Paragraph(heading.upper(), item_heading_style))
+                    story.append(HRFlowable(width='100%', thickness=0.5,
+                                            color=BORDER_BLUE, spaceAfter=4))
+                if content:
+                    for line in content.split('\n'):
+                        if line.strip():
+                            story.append(Paragraph(f'{line.strip()}' if not line.startswith('•') else line, item_body_style))
+
+            story.append(Spacer(1, 6))
+
+            # ── Fee statement ──
+            if circ.show_fee_statement:
+                student_fees = fee_map.get(student.id, [])
+                story.append(Paragraph('HALI YA ADA / FEE STATEMENT', item_heading_style))
+                story.append(HRFlowable(width='100%', thickness=0.5,
+                                        color=BORDER_BLUE, spaceAfter=4))
+                student_fee_data = fee_map.get(student.id, {'current': [], 'historical': []})
+                current_fees     = student_fee_data.get('current', [])
+                historical_fees  = [f for f in student_fee_data.get('historical', []) if f['balance'] > 0]
+                all_fees         = current_fees + historical_fees
+
+                if all_fees:
+                    fee_header = ['Kipengele / Item', 'Inayotarajiwa', 'Imelipwa', 'Salio']
+                    fee_data   = [fee_header]
+                    total_exp = total_paid = total_bal = 0
+                    
+                    for f in current_fees:
+                        fee_data.append([
+                            f['name'],
+                            f"TZS {f['expected']:,.0f}",
+                            f"TZS {f['paid']:,.0f}",
+                            f"TZS {f['balance']:,.0f}",
+                        ])
+                        total_exp += f['expected']; total_paid += f['paid']; total_bal += f['balance']
+                        
+                    if historical_fees:
+                        fee_data.append(['── MADENI YA AWALI ──', '', '', ''])
+                        for f in historical_fees:
+                            fee_data.append([
+                                f"{f['name']} ({f['year']})",
+                                f"TZS {f['expected']:,.0f}",
+                                f"TZS {f['paid']:,.0f}",
+                                f"TZS {f['balance']:,.0f}",
+                            ])
+                            total_exp += f['expected']; total_paid += f['paid']; total_bal += f['balance']
+                            
+                    # We only calculate and append JUMLA once here.
+                    # The duplicate loop over `all_fees` has been completely removed.
+                    fee_data.append(['JUMLA', f"TZS {total_exp:,.0f}",
+                                     f"TZS {total_paid:,.0f}", f"TZS {total_bal:,.0f}"])
+
+                    col_ws = [W * 0.40, W * 0.20, W * 0.20, W * 0.20]
+                    fee_tbl = Table(fee_data, colWidths=col_ws)
+                    fee_style = [
+                        ('BACKGROUND', (0, 0), (-1, 0), NAVY),
+                        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
+                        ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE',   (0, 0), (-1, -1), 8),
+                        ('ALIGN',      (1, 0), (-1, -1), 'RIGHT'),
+                        ('ALIGN',      (0, 0), (0, -1),  'LEFT'),
+                        ('TOPPADDING', (0, 0), (-1, -1), 4),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+                        ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+                        ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#e2e8f0')),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, ROW_ALT]),
+                        ('BACKGROUND', (0, -1), (-1, -1), LIGHT_BG),
+                        ('FONTNAME',   (0, -1), (-1, -1), 'Helvetica-Bold'),
+                        ('LINEABOVE',  (0, -1), (-1, -1), 1, NAVY),
+                    ]
+                    if total_bal > 0:
+                        fee_style.append(('TEXTCOLOR', (3, -1), (3, -1), G_RED))
+                    else:
+                        fee_style.append(('TEXTCOLOR', (3, -1), (3, -1), G_GREEN))
+                    fee_tbl.setStyle(TableStyle(fee_style))
+                    story.append(fee_tbl)
+                else:
+                    story.append(Paragraph('Hakuna rekodi za ada.', small_style))
+                story.append(Spacer(1, 8))
+
+            
+
+            # ── Signature block ──
+            story.append(HRFlowable(width='100%', thickness=0.5,
+                                    color=colors.HexColor('#e2e8f0'), spaceBefore=4, spaceAfter=6))
+
+            sig_col_w = 60 * mm
+            sig_content = [
+                Paragraph('Sahihi / Signature:', sig_label_style),
+                hos_sig if hos_sig else Spacer(1, 22 * mm),
+                HRFlowable(width=sig_col_w, thickness=1.5,
+                           color=colors.HexColor('#334155'), spaceAfter=3),
+                Paragraph(hos_name, hos_name_style),
+                Paragraph('Mkuu wa Shule / Head of School', sig_label_style),
+            ]
+            sig_tbl = Table([[sig_content, '']], colWidths=[sig_col_w, W - sig_col_w])
+            sig_tbl.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            story.append(sig_tbl)
+
+            # ── Footer ──
+            story.append(Spacer(1, 6))
+            story.append(HRFlowable(width='100%', thickness=0.5,
+                                    color=colors.HexColor('#e2e8f0'), spaceBefore=4))
+            story.append(_footer(W))
+            story.append(Spacer(1, 3))
+            story.append(_gradient_bar(W))
+
+        doc.build(story)
+        buf.seek(0)
+        safe    = lambda s: s.replace(' ', '_').replace('/', '-')
+        fn      = f"circular_{safe(circ.title)}_{safe(stream_label)}.pdf"
+        resp    = HttpResponse(buf.read(), content_type='application/pdf')
+        resp['Content-Disposition'] = f'inline; filename="{fn}"'
+        return resp

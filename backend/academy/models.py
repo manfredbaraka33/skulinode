@@ -372,3 +372,305 @@ class SMSLog(TenantModel):
 
     def __str__(self):
         return f"SMS to {self.parent_phone} [{self.status}]"
+    
+
+# ── Comment System ────────────────────────────────────────────────────────────
+
+SYSTEM_COMMENT_TEMPLATES = {
+    'class_teacher': [
+        {'min': 75, 'max': 100, 'text': "Hongera {name}! Umefanya vizuri sana muhula huu. Endelea na juhudi katika {best_subject} na pia uzingatie {weak_subject}."},
+        {'min': 65, 'max': 74,  'text': "{name} umefanya vizuri. Unaweza kufikia daraja la juu zaidi. Ongeza bidii hasa katika {weak_subject}."},
+        {'min': 50, 'max': 64,  'text': "{name} unaweza zaidi ya hivi. Tumia muda wako vizuri na omba msaada endapo una ugumu katika {weak_subject}."},
+        {'min': 30, 'max': 49,  'text': "{name} lazima ujitahidi zaidi. Ongeza juhudi katika masomo yako na omba msaada wa mwalimu."},
+        {'min': 0,  'max': 29,  'text': "{name} anahitaji msaada wa haraka. Nahitaji kukutana na familia yake ili tuzungumze njia ya mbele."},
+    ],
+    'academic_master': [
+        {'min': 75, 'max': 100, 'text': "{name} amefanya vizuri sana na wastani wa {avg}%. Tunampongeza kwa juhudi zake za muhula huu."},
+        {'min': 65, 'max': 74,  'text': "{name} amefanya vizuri na wastani wa {avg}%. Tunamtarajia aendelee kujitahidi ili afikia viwango vya juu zaidi."},
+        {'min': 50, 'max': 64,  'text': "{name} ana uwezo mkubwa. Wastani wa {avg}% unaonyesha anahitaji kujitahidi zaidi muhula ujao."},
+        {'min': 30, 'max': 49,  'text': "{name} anahitaji kufanya kazi kwa bidii zaidi. Wastani wa {avg}% haukidhi matarajio yetu."},
+        {'min': 0,  'max': 29,  'text': "{name} amepata matokeo ya chini sana na wastani wa {avg}%. Anahitaji msaada wa haraka."},
+    ],
+    'headmaster': [
+        {'min': 75, 'max': 100, 'text': "Tunampongeza sana {name} kwa nafasi ya {position} kati ya wanafunzi {total}. Endelea na tabia njema na juhudi kubwa."},
+        {'min': 65, 'max': 74,  'text': "{name} ameshika nafasi ya {position} kati ya wanafunzi {total}. Tunampongeza na kumtia moyo aendelee."},
+        {'min': 50, 'max': 64,  'text': "{name} ameshika nafasi ya {position}. Tunaamini anaweza kufanya vizuri zaidi akijitahidi muhula ujao."},
+        {'min': 30, 'max': 49,  'text': "{name} ameshika nafasi ya {position}. Anahitaji msaada na ushirikiano mkubwa wa familia yake."},
+        {'min': 0,  'max': 29,  'text': "Tunaomba {name} na familia yake wakutane na uongozi wa shule kujadili njia ya kuboresha hali yake ya masomo."},
+    ],
+}
+
+
+def render_comment(template_text, student_name='', avg=None, grade=None,
+                   best_subject=None, weak_subject=None, division=None,
+                   points=None, position=None, total=None):
+    """Replace {variables} in a template with actual student data."""
+    t = template_text or ''
+    t = t.replace('{name}',         student_name or '')
+    t = t.replace('{avg}',          str(round(float(avg), 1)) if avg is not None else '-')
+    t = t.replace('{grade}',        grade or '-')
+    t = t.replace('{best_subject}', best_subject or '-')
+    t = t.replace('{weak_subject}', weak_subject or '-')
+    t = t.replace('{division}',     division or '-')
+    t = t.replace('{points}',       str(int(points)) if points is not None else '-')
+    t = t.replace('{position}',     str(position) if position is not None else '-')
+    t = t.replace('{total}',        str(total) if total is not None else '-')
+    return t
+
+
+class CommentTemplate(TenantModel):
+    """Per-user customised comment template for a score band + role."""
+    ROLE_CHOICES = [
+        ('class_teacher',  'Class Teacher'),
+        ('academic_master', 'Academic Master'),
+        ('headmaster',     'Head Master'),
+    ]
+    created_by    = models.ForeignKey('core.CustomUser', on_delete=models.CASCADE,
+                                      related_name='comment_templates')
+    role          = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    min_score     = models.DecimalField(max_digits=5, decimal_places=2)
+    max_score     = models.DecimalField(max_digits=5, decimal_places=2)
+    template_text = models.TextField(
+        help_text='Variables: {name} {avg} {grade} {best_subject} {weak_subject} '
+                  '{division} {points} {position} {total}'
+    )
+
+    class Meta:
+        unique_together     = [('school', 'created_by', 'role', 'min_score')]
+        ordering            = ['-min_score']
+        verbose_name        = 'Comment Template'
+        verbose_name_plural = 'Comment Templates'
+
+    def __str__(self):
+        return f'{self.role} ({self.min_score}–{self.max_score}%)'
+
+
+class StudentComment(TenantModel):
+    """Stored comment for one student × assessment × role (Level 3 = manual)."""
+    ROLE_CHOICES = [
+        ('class_teacher',  'Class Teacher'),
+        ('academic_master', 'Academic Master'),
+        ('headmaster',     'Head Master'),
+    ]
+    student      = models.ForeignKey(Student,    on_delete=models.CASCADE, related_name='comments')
+    assessment   = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name='comments',
+                                     null=True, blank=True)
+    snapshot     = models.ForeignKey('CombinedResultsSnapshot', on_delete=models.CASCADE,
+                                     null=True, blank=True, related_name='student_comments',
+                                     help_text='Set when comment belongs to combined snapshot.')
+    role         = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    comment_text = models.TextField()
+    is_manual    = models.BooleanField(default=False,
+                                       help_text='True when manually overridden by the role.')
+    created_by   = models.ForeignKey('core.CustomUser', on_delete=models.SET_NULL,
+                                     null=True, related_name='written_comments')
+    updated_at   = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['student__last_name', 'student__first_name']
+        verbose_name        = 'Student Comment'
+        verbose_name_plural = 'Student Comments'
+
+    def __str__(self):
+        return f'[{self.role}] {self.student} — {self.assessment}'
+
+
+
+# ── Finance Module (TZ Context) ───────────────────────────────────────────────
+
+class FeeDefinition(TenantModel):
+    """
+    Defines one type of fee or contribution for a school year.
+    ADA     = school fees paid in awamu (installments/phases)
+    MCHANGO = flat one-time contribution (exam fee, library, sports, etc.)
+    """
+    CATEGORY = [('ADA', 'Ada ya Shule'), ('MCHANGO', 'Mchango Mwingine')]
+    APPLIES  = [('ALL', 'Wanafunzi Wote'), ('STREAM', 'Mkondo Maalum')]
+
+    name          = models.CharField(max_length=200,
+                                     help_text='e.g. Ada ya Shule 2026, Ada ya Mtihani')
+    category      = models.CharField(max_length=10, choices=CATEGORY, default='ADA')
+    academic_year = models.PositiveIntegerField(default=2026)
+    applies_to    = models.CharField(max_length=10, choices=APPLIES, default='ALL')
+    stream        = models.ForeignKey('academy.Stream', on_delete=models.SET_NULL,
+                                      null=True, blank=True,
+                                      help_text='Set only when applies_to=STREAM')
+    notes         = models.TextField(blank=True)
+    is_active     = models.BooleanField(default=True)
+    created_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering     = ['-academic_year', 'category', 'name']
+        verbose_name = 'Fee Definition'
+
+    def __str__(self):
+        return f'{self.name} ({self.academic_year}) [{self.get_category_display()}]'
+
+
+class FeePhase(TenantModel):
+    """
+    An installment (awamu) of an ADA-type FeeDefinition.
+    MCHANGO definitions skip phases — the amount is on the definition itself via
+    a single auto-created phase named 'Mchango'.
+    """
+    definition = models.ForeignKey(FeeDefinition, on_delete=models.CASCADE,
+                                   related_name='phases')
+    name       = models.CharField(max_length=100,
+                                   help_text='e.g. Awamu ya Kwanza, Muhula 1')
+    amount     = models.DecimalField(max_digits=12, decimal_places=2)
+    due_date   = models.DateField(null=True, blank=True)
+    order      = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        ordering        = ['definition', 'order']
+        unique_together = [('school', 'definition', 'name')]
+        verbose_name    = 'Fee Phase / Awamu'
+
+    def __str__(self):
+        return f'{self.definition.name} — {self.name} (TZS {self.amount})'
+
+    @property
+    def can_edit_amount(self):
+        """True only if no payments have been recorded yet."""
+        return not self.records.filter(amount_paid__gt=0).exists()
+
+
+class StudentFeeRecord(TenantModel):
+    """
+    Tracks one student's payment progress for one phase (or one mchango).
+    ADA:     one record per student per phase
+    MCHANGO: one record per student per definition (phase = single auto phase)
+    """
+    student           = models.ForeignKey(Student, on_delete=models.CASCADE,
+                                           related_name='fee_records')
+    definition        = models.ForeignKey(FeeDefinition, on_delete=models.PROTECT,
+                                           related_name='records',null=True, blank=True)
+    phase             = models.ForeignKey(FeePhase, on_delete=models.PROTECT,
+                                           related_name='records',null=True, blank=True)
+    amount_expected   = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_paid       = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    last_payment_date = models.DateField(null=True, blank=True)
+    recorded_by       = models.ForeignKey('core.CustomUser', on_delete=models.SET_NULL,
+                                           null=True, blank=True)
+    notes             = models.TextField(blank=True)
+    updated_at        = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('school', 'student', 'phase')]
+        ordering        = ['student__last_name', 'definition__category', 'phase__order']
+        verbose_name    = 'Student Fee Record'
+
+    @property
+    def balance(self):
+        return self.amount_expected - self.amount_paid
+
+    def __str__(self):
+        # Safely get names, providing defaults if None
+        def_name = self.definition.name if self.definition else "No Definition"
+        phase_name = self.phase.name if self.phase else "No Phase"
+        return f'{self.student} — {def_name} / {phase_name} — bal {self.balance}'
+
+
+
+
+# ── Class Master Assignments ──────────────────────────────────────────────────
+
+class ClassMasterAssignment(TenantModel):
+    """One teacher is class master per stream per academic year."""
+    teacher = models.ForeignKey(
+        'core.CustomUser', on_delete=models.CASCADE,
+        related_name='class_master_assignments',
+    )
+    stream = models.ForeignKey(
+        Stream, on_delete=models.CASCADE,
+        related_name='class_master_assignments',
+    )
+    academic_year = models.PositiveIntegerField(default=2026)
+
+    class Meta:
+        unique_together = [('school', 'stream', 'academic_year')]
+        ordering = ['stream__class_level__name', 'stream__name']
+        verbose_name = 'Class Master Assignment'
+
+    def __str__(self):
+        return f'{self.teacher} → {self.stream} ({self.academic_year})'
+
+
+# ── Combined Results Snapshots ────────────────────────────────────────────────
+
+class CombinedResultsSnapshot(TenantModel):
+    """Stored snapshot of published combined results — avoids re-entering weights."""
+    name          = models.CharField(max_length=200)
+    stream        = models.ForeignKey(Stream, on_delete=models.CASCADE,
+                                      related_name='combined_snapshots')
+    academic_year = models.PositiveIntegerField(default=2026)
+    components    = models.JSONField(default=list)   # [{id, name, weight}]
+    subjects      = models.JSONField(default=list)   # ordered subject names
+    treat_missing_as_zero = models.BooleanField(default=False)
+    school_type   = models.CharField(max_length=20, default='ORDINARY')
+    published_by  = models.ForeignKey('core.CustomUser', on_delete=models.SET_NULL,
+                                       null=True, related_name='combined_snapshots')
+    created_at    = models.DateTimeField(auto_now_add=True)
+    is_published  = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Combined Results Snapshot'
+
+    def __str__(self):
+        return f'{self.name} — {self.stream}'
+
+
+class CombinedStudentSnapshot(TenantModel):
+    """Per-student result within a CombinedResultsSnapshot."""
+    snapshot     = models.ForeignKey(CombinedResultsSnapshot, on_delete=models.CASCADE,
+                                      related_name='student_results')
+    student      = models.ForeignKey(Student, on_delete=models.CASCADE,
+                                      related_name='combined_snapshots')
+    rank         = models.IntegerField(null=True, blank=True)
+    total_students = models.IntegerField(default=0)
+    total_score  = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    average      = models.DecimalField(max_digits=6,  decimal_places=2, null=True, blank=True)
+    grade        = models.CharField(max_length=10, blank=True)
+    grade_remarks = models.CharField(max_length=100, blank=True)
+    points       = models.IntegerField(null=True, blank=True)
+    division     = models.CharField(max_length=50, blank=True)
+    subject_data = models.JSONField(default=dict)        # {subj_name: {final_score, grade, assessment_scores, ...}}
+    assessment_averages = models.JSONField(default=dict) # {assessment_id: {raw_average}}
+
+    class Meta:
+        unique_together = [('school', 'snapshot', 'student')]
+        ordering = ['rank']
+        verbose_name = 'Combined Student Snapshot'
+
+
+
+# ── Term Circular ─────────────────────────────────────────────────────────────
+
+class TermCircular(TenantModel):
+    """
+    A reusable end-of-term circular template.
+    Generated as a printable document per student, pulling fee data automatically.
+    """
+    title         = models.CharField(max_length=200, default='End of Term Circular')
+    academic_year = models.PositiveIntegerField(default=2026)
+    stream        = models.ForeignKey(Stream, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='circulars',
+                                      help_text='Target stream. Leave blank for school-wide.')
+    closing_date  = models.DateField(null=True, blank=True)
+    opening_date  = models.DateField(null=True, blank=True)
+    school_motto  = models.CharField(max_length=300, blank=True)
+    items         = models.JSONField(default=list,
+                                     help_text='[{heading: str, content: str}, ...]')
+    show_fee_statement = models.BooleanField(default=True)
+    created_by    = models.ForeignKey('core.CustomUser', on_delete=models.SET_NULL,
+                                      null=True, related_name='circulars')
+    updated_at    = models.DateTimeField(auto_now=True)
+    created_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering     = ['-created_at']
+        verbose_name = 'Term Circular'
+
+    def __str__(self):
+        return f'{self.title} ({self.academic_year}) — {self.school}'

@@ -49,6 +49,8 @@ export default function ReportCardsPage() {
   const [loading, setLoading]         = useState(false);
   const [idx, setIdx]                 = useState(0);
   const [pdfLoading, setPdfLoading]   = useState(false);
+  const [snapshots,        setSnapshots]         = useState([]);
+  const [selectedSnapshot, setSelectedSnapshot]  = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -60,7 +62,16 @@ export default function ReportCardsPage() {
       setAssessments(a.data.results ?? a.data);
       setSchool(sc.data);
     }).catch(() => {});
+
+
   }, []);
+
+    useEffect(() => {
+    if (mode !== 'snapshot' || !stream) { setSnapshots([]); return; }
+    apiClient.get(`/academy/combined-snapshots/?stream=${stream}`)
+      .then(r => setSnapshots(r.data))
+      .catch(() => setSnapshots([]));
+  }, [mode, stream]);
 
   const selectedCombinedAssessments = assessments
     .filter(a => combinedSelection[a.id]?.selected)
@@ -77,6 +88,14 @@ export default function ReportCardsPage() {
     if (!stream) return;
     setLoading(true);
     try {
+      if (mode === 'snapshot') {
+        if (!selectedSnapshot) { setLoading(false); return; }
+        const r = await apiClient.get(`/academy/combined-snapshots/${selectedSnapshot}/`);
+        setData(r.data);
+        setIdx(0);
+        setLoading(false);
+        return;
+      }
       if (mode === 'combined') {
         const r = await apiClient.post('/academy/results/combined/', {
           stream,
@@ -154,23 +173,34 @@ export default function ReportCardsPage() {
     if (!data) return;
     setPdfLoading(true);
     try {
-      const payload = mode === 'combined'
-        ? {
+      let payload, endpoint;
+      if (mode === 'snapshot') {
+        payload   = { snapshot_id: selectedSnapshot };
+        endpoint  = '/academy/report-cards/combined/pdf/';
+      } else if (mode === 'combined') {
+        payload   = {
           stream,
           assessments: selectedCombinedAssessments.map(a => ({ assessment_id: a.assessment_id, weight: a.weight })),
           treat_missing_as_zero: treatMissingAsZero,
-        }
-        : { assessment, stream };
+        };
+        endpoint  = '/academy/report-cards/combined/pdf/';
+      } else {
+        payload   = { assessment, stream };
+        endpoint  = '/academy/report-cards/pdf/';
+      }
       if (singleStudentId) payload.student_id = singleStudentId;
       const r = await apiClient.post(
-        mode === 'combined' ? '/academy/report-cards/combined/pdf/' : '/academy/report-cards/pdf/',
+        endpoint,
         payload,
         { responseType: 'blob' },
       );
       const url = window.URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      const snap = snapshots.find(s => String(s.id) === String(selectedSnapshot));
       const filename = singleStudentId
         ? `report_card_${singleStudentId}.pdf`
-        : mode === 'combined' ? `report_cards_combined_${stream}.pdf` : `report_cards_${stream}_${assessment}.pdf`;
+        : mode === 'snapshot'  ? `${(snap?.name ?? 'combined').replace(/\s+/g,'_')}.pdf`
+        : mode === 'combined'  ? `report_cards_combined_${stream}.pdf`
+        : `report_cards_${stream}_${assessment}.pdf`;
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
@@ -254,6 +284,11 @@ export default function ReportCardsPage() {
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${mode === 'combined' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
               Combined
             </button>
+            <button
+              onClick={() => { setMode('snapshot'); setData(null); setSelectedSnapshot(''); }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${mode === 'snapshot' ? 'bg-green-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
+              Zilizohifadhiwa
+            </button>
           </div>
         </div>
         {mode === 'single' ? (
@@ -272,6 +307,39 @@ export default function ReportCardsPage() {
                 <button onClick={loadData}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
                   Generate
+                </button>
+              </div>
+            )}
+          </>
+        ) : mode === 'snapshot' ? (
+          <>
+            {stream && snapshots.length === 0 && (
+              <p className="text-xs text-slate-400 py-2">
+                Hakuna matokeo ya pamoja yaliyohifadhiwa kwa darasa hili.
+                Chapisha matokeo ya pamoja kwanza ukurasa wa matokeo.
+              </p>
+            )}
+            {stream && snapshots.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Matokeo Yaliyohifadhiwa</label>
+                <select
+                  value={selectedSnapshot}
+                  onChange={e => { setSelectedSnapshot(e.target.value); setData(null); }}
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-64">
+                  <option value="">Chagua matokeo...</option>
+                  {snapshots.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} · {s.student_count} wanafunzi · {new Date(s.created_at).toLocaleDateString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {selectedSnapshot && (
+              <div className="flex items-end">
+                <button onClick={loadData}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition">
+                  Onyesha Kadi
                 </button>
               </div>
             )}
@@ -348,9 +416,13 @@ export default function ReportCardsPage() {
                 subjects={subjects}
                 school={school}
                 schoolType={data?.school_type}
-                assessmentName={mode === 'combined' ? 'Combined' : selectedAssessmentName}
+                assessmentName={
+                  mode === 'snapshot' ? (data?.name ?? 'Combined')
+                  : mode === 'combined' ? 'Combined'
+                  : selectedAssessmentName
+                }
                 assessments={data?.assessments ?? []}
-                mode={mode}
+                mode={mode === 'snapshot' ? 'combined' : mode}
                 streamLabel={selectedStreamLabel}
                 isVisible={i === idx}
               />
@@ -371,7 +443,7 @@ export default function ReportCardsPage() {
                 <div key={item.assessment_id} className="text-xs text-amber-900">
                   <p className="font-semibold">{item.assessment_name}</p>
                   <p>{item.students.join(', ')}</p>
-                </div>
+            </div>
               ))}
             </div>
             <div className="mt-4 flex justify-end gap-2">

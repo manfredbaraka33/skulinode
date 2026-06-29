@@ -40,7 +40,32 @@ from academy.views import (
     SubjectDetailView,
     SubjectListCreateView,
     SubmissionStatsView,
+    
 )
+
+from academy.comment_views import (
+    CommentTemplateListView, CommentTemplateDetailView,
+    SystemCommentTemplatesView, GenerateCommentsView,
+    StudentCommentListView, StudentCommentSaveView, CommentPreviewView,
+)
+
+
+from academy.finance_views import (
+    FeeDefinitionListCreateView, FeeDefinitionDetailView,
+    FeePhaseListCreateView, FeePhaseDetailView,
+    StudentFeeRecordListView, FeeRecordGenerateView,
+    FeeRecordPaymentView, FeeRecordUpdateView,
+    FeeDebtReportView, FeeDebtReportCSVView,
+)
+
+from academy.combined_views import (
+    ClassMasterListCreateView, ClassMasterDetailView, MyClassMasterStreamsView,
+    CombinedSnapshotListView, PublishCombinedResultsView, CombinedSnapshotDetailView,
+)
+
+from academy.circular_views import CircularListCreateView, CircularDetailView
+
+from academy.pdf_views import CircularPDFView
 
 urlpatterns = [
     # Class levels & streams (raw)
@@ -99,5 +124,51 @@ urlpatterns = [
     path('marks/pdf/',                  MarkSheetPDFView.as_view(),                       name='marksheet_pdf'),
     path('report-cards/pdf/',           ReportCardsPDFView.as_view(),                     name='report_cards_pdf'),
     path('report-cards/combined/pdf/',  CombinedReportCardsPDFView.as_view(),             name='report_cards_combined_pdf'),
+
+    # Comment templates (user settings)
+    path('comment-templates/',           CommentTemplateListView.as_view(),    name='comment_template_list'),
+    path('comment-templates/system/',    SystemCommentTemplatesView.as_view(), name='comment_template_system'),
+    path('comment-templates/<int:pk>/',  CommentTemplateDetailView.as_view(),  name='comment_template_detail'),
+
+    # Student comments
+    path('comments/',                    StudentCommentSaveView.as_view(),     name='comment_save'),
+    path('comments/<int:pk>/',           StudentCommentSaveView.as_view(),     name='comment_update'),
+    path('comments/generate/',           GenerateCommentsView.as_view(),       name='comment_generate'),
+    path('comments/list/',               StudentCommentListView.as_view(),     name='comment_list'),
+    path('comments/preview/',            CommentPreviewView.as_view(),         name='comment_preview'),
+
+# Finance — fee definitions
+    path('fee-definitions/',            FeeDefinitionListCreateView.as_view(),  name='fee_def_list'),
+    path('fee-definitions/<int:pk>/',   FeeDefinitionDetailView.as_view(),      name='fee_def_detail'),
+
+    # Finance — fee phases (awamu)
+    path('fee-phases/',                 FeePhaseListCreateView.as_view(),       name='fee_phase_list'),
+    path('fee-phases/<int:pk>/',        FeePhaseDetailView.as_view(),           name='fee_phase_detail'),
+
+    # Finance — student records
+    path('fee-records/',                StudentFeeRecordListView.as_view(),     name='fee_record_list'),
+    path('fee-records/generate/',       FeeRecordGenerateView.as_view(),        name='fee_record_generate'),
+    path('fee-records/<int:pk>/payment/', FeeRecordPaymentView.as_view(),       name='fee_record_payment'),
+    path('fee-records/<int:pk>/',       FeeRecordUpdateView.as_view(),          name='fee_record_update'),
+
+    # Finance — debt reports
+    path('fee-reports/',                FeeDebtReportView.as_view(),            name='fee_report'),
+    path('fee-reports/csv/',            FeeDebtReportCSVView.as_view(),         name='fee_report_csv'),
+    # Class master assignments
+    path('class-masters/',                ClassMasterListCreateView.as_view(),  name='class_master_list'),
+    path('class-masters/<int:pk>/',       ClassMasterDetailView.as_view(),      name='class_master_detail'),
+    path('my-class-master-streams/',      MyClassMasterStreamsView.as_view(),   name='my_class_master_streams'),
+
+    # Combined results snapshots
+    path('combined-snapshots/',           CombinedSnapshotListView.as_view(),  name='combined_snapshot_list'),
+    path('combined-snapshots/publish/',   PublishCombinedResultsView.as_view(),name='combined_snapshot_publish'),
+    path('combined-snapshots/<int:pk>/',  CombinedSnapshotDetailView.as_view(),name='combined_snapshot_detail'),
+
+    # Term circulars
+    path('circulars/',            CircularListCreateView.as_view(), name='circular_list'),
+    path('circulars/<int:pk>/',   CircularDetailView.as_view(),     name='circular_detail'),
+    path('circulars/<int:pk>/pdf/', CircularPDFView.as_view(),      name='circular_pdf'),
 ]
+
+
 

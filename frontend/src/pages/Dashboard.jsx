@@ -4,8 +4,11 @@ import {
   School, LayoutDashboard, GraduationCap, BookOpen, LayoutGrid,
   ClipboardList, Users, UserCheck, BarChart2, FileText,
   LogOut, Menu, Sun, Moon, X, Settings, Layers, BookCheck,
-  SlidersHorizontal, ChevronLeft, ChevronRight, KeyRound,
-  Phone, MessageSquarePlus,
+  SlidersHorizontal, ChevronLeft, ChevronRight, KeyRound,DollarSign,
+  Phone, MessageSquarePlus,MessageSquare,FileIcon,
+  User2,
+  BadgeDollarSign,
+  MegaphoneIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -13,8 +16,7 @@ import { useDarkMode } from '../hooks/useDarkMode';
 const ROLE_BADGE = {
   ADMIN:   { label: 'School Admin',    color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' },
   TEACHER: { label: 'Teacher',         color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
-  PARENT:  { label: 'Parent/Guardian', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
-  STUDENT: { label: 'Student',         color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
+  BURSAR: { label: 'Bursar',         color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100' },
 };
 
 function SidebarLink({ to, icon: Icon, label, onClick, collapsed }) {
@@ -69,7 +71,8 @@ export default function Dashboard() {
   const [collapsed, setCollapsed] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const isAdmin = auth?.role === 'ADMIN' || (auth?.roles ?? []).includes('ADMIN');
-  const isTeacher = auth?.role === 'TEACHER' || (auth?.roles ?? []).includes('TEACHER') || isAdmin;
+  const isBursar = auth?.role === 'BURSAR' || (auth?.roles ?? []).includes('BURSAR');
+  const isTeacher = auth?.role === 'TEACHER' || (auth?.roles ?? []).includes('TEACHER');
   const slug = auth?.schoolSlug ?? '';
   const badge = ROLE_BADGE[auth?.role] ?? { label: auth?.role, color: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' };
 
@@ -77,6 +80,7 @@ export default function Dashboard() {
     logout();
     navigate('/login', { replace: true });
   }
+  
 
   const SidebarContent = ({ onClose, forceExpanded = false }) => {
     const isCollapsed = !forceExpanded && collapsed;
@@ -125,15 +129,19 @@ export default function Dashboard() {
               <SidebarLink to={`/${slug}/assessments`}     icon={ClipboardList}     label="Assessments"      onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/students`}        icon={GraduationCap}     label="Students"         onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/users`}           icon={Users}             label="Staff"            onClick={onClose} collapsed={isCollapsed} />
+
               <SidebarSection label="Assignments" collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/assignments`}     icon={Layers}            label="Satff Subjects"      onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/student-subjects`} icon={BookCheck}        label="Student Subjects" onClick={onClose} collapsed={isCollapsed} />
+              <SidebarLink to={`/${slug}/class-masters`} icon={Users}        label="Class Masters" onClick={onClose} collapsed={isCollapsed} />
+
               <SidebarSection label="Results" collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/results`}         icon={BarChart2}         label="Live Results"     onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/report-cards`}    icon={FileText}          label="Report Cards"     onClick={onClose} collapsed={isCollapsed} />
               <SidebarSection label="School" collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/settings`}        icon={Settings}          label="School Settings"  onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/grade-config`}    icon={SlidersHorizontal} label="Grade Ranges"     onClick={onClose} collapsed={isCollapsed} />
+              <SidebarLink to={`/${slug}/circulars`}    icon={FileIcon}          label="Circulars"     onClick={onClose} collapsed={isCollapsed} />
             </>
           )}
 
@@ -142,6 +150,17 @@ export default function Dashboard() {
               <SidebarSection label="Teaching" collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/marks`}         icon={UserCheck}  label="My Subjects"   onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/staff-results`} icon={BarChart2}   label="Class Results" onClick={onClose} collapsed={isCollapsed} />
+            </>
+          )}
+
+          {(isAdmin || isTeacher) && (
+              <SidebarLink to={`/${slug}/comments`} icon={MessageSquare} label="Comments" onClick={onClose} collapsed={isCollapsed} />
+            )}
+
+          {isBursar && (
+            <>
+              <SidebarSection label="Finance" collapsed={isCollapsed} />
+              <SidebarLink to={`/${slug}/finance`} icon={DollarSign}   label="Fedha" onClick={onClose} collapsed={isCollapsed} />
             </>
           )}
 
@@ -247,7 +266,8 @@ export function DashboardHome() {
   const navigate = useNavigate();
   const slug = auth?.schoolSlug ?? '';
   const isAdmin = auth?.role === 'ADMIN' || (auth?.roles ?? []).includes('ADMIN');
-  const isTeacher = auth?.role === 'TEACHER' || (auth?.roles ?? []).includes('TEACHER') || isAdmin;
+  const isBursar = auth?.role === 'BURSAR' || (auth?.roles ?? []).includes('BURSAR');
+  const isTeacher = auth?.role === 'TEACHER' || (auth?.roles ?? []).includes('TEACHER');
   const badge = ROLE_BADGE[auth?.role] ?? { label: auth?.role, color: 'bg-slate-100 text-slate-600' };
 
   const adminCards = [
@@ -262,7 +282,12 @@ export function DashboardHome() {
     { to: `/${slug}/marks`,         icon: UserCheck, label: 'My Subjects',   desc: 'Enter marks for your classes' },
     { to: `/${slug}/staff-results`, icon: BarChart2,  label: 'Class Results', desc: 'View published results' },
   ];
-  const cards = isAdmin ? adminCards : teacherCards;
+  const bursarCards = [
+    { to: `/${slug}/finance`,         icon: DollarSign, label: 'Fedha',   desc: 'Manage Fees' },
+    
+  ];
+ 
+  const cards = isAdmin ? adminCards : isBursar ? bursarCards : teacherCards;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">

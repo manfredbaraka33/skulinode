@@ -44,6 +44,9 @@ export function PageHeader({ icon: Icon, title, subtitle, action }) {
           <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h1>
           {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
         </div>
+        <div>
+          
+        </div>
       </div>
       {action}
     </div>

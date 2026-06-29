@@ -4,7 +4,7 @@ from rest_framework import serializers
 from academy.grading import get_grade, get_gpa, get_division, get_grade_comment
 from academy.models import (
     Assessment, ClassLevel, GradeConfig, Mark, Stream, Student,
-    StudentSubjectExclusion, Subject, SubjectAssignment,
+    StudentSubjectExclusion, Subject, SubjectAssignment,CommentTemplate, StudentComment
 )
 
 
@@ -169,3 +169,21 @@ class StudentResultSerializer(serializers.Serializer):
     rank = serializers.IntegerField(allow_null=True)
     subjects_count = serializers.IntegerField()
 
+
+# ── Comment System ─────────────────────────────────────────────────────────────
+
+class CommentTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = CommentTemplate
+        fields = ['id', 'role', 'min_score', 'max_score', 'template_text']
+        read_only_fields = ['id']
+
+
+class StudentCommentSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.display_name', read_only=True)
+
+    class Meta:
+        model  = StudentComment
+        fields = ['id', 'student', 'student_name', 'assessment', 'role',
+                  'comment_text', 'is_manual', 'updated_at']
+        read_only_fields = ['id', 'student_name', 'updated_at']

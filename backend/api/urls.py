@@ -13,6 +13,7 @@ from core.views import (
     StaffListCreateView,
     StaffResetPasswordView,
     UserProfileView,
+    SignatureUploadView
 )
 from api.views import FeedbackCreateView
 
@@ -41,4 +42,7 @@ urlpatterns = [
 
     # Feedback
     path('feedback/', FeedbackCreateView.as_view(), name='feedback_create'),
+
+    # Signature
+    path('auth/signature/', SignatureUploadView.as_view(), name='signature_upload'),
 ]

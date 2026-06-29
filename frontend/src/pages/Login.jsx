@@ -43,7 +43,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
 
         {/* Header */}
@@ -62,7 +62,7 @@ export default function Login() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
             <input
               type="text"
-              placeholder="john.doe"
+              placeholder="saleh"
               autoComplete="username"
               className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-blue-500
                 ${errors.username ? 'border-red-400' : 'border-slate-300'}`}

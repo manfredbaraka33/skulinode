@@ -21,6 +21,11 @@ import ProfilePage from './pages/ProfilePage';
 import ContactPage from './pages/ContactPage';
 import FeedbackPage from './pages/FeedbackPage';
 import PendingVerification from './pages/PendingVerification';
+import CommentsPage from './pages/CommentsPage';
+import FinancePage from './pages/FinancePage';
+import ClassMastersPage from './pages/ClassMastersPage';
+import TermCircularPage from './pages/TermCircularPage';
+
 
 function App() {
   return (
@@ -54,6 +59,10 @@ function App() {
             <Route path="profile"           element={<ProfilePage />} />
             <Route path="contact"           element={<ContactPage />} />
             <Route path="feedback"          element={<FeedbackPage />} />
+            <Route path="comments" element={<CommentsPage />} />
+            <Route path="finance" element={<ProtectedRoute allowedRoles={['ADMIN','BURSAR']}><FinancePage /></ProtectedRoute>} />
+            <Route path="class-masters" element={<ProtectedRoute allowedRoles={['ADMIN']}><ClassMastersPage /></ProtectedRoute>} />
+            <Route path="circulars" element={<ProtectedRoute allowedRoles={['ADMIN']}><TermCircularPage /></ProtectedRoute>} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
