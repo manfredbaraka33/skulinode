@@ -65,7 +65,7 @@ useEffect(() => {
       
       
       setLogoPreview(sRes.data.logo ?? null); 
-      console.log(sRes)
+      // console.log(sRes)
       setStaffList(Array.isArray(uRes.data) ? uRes.data : (uRes.data.results || []));
     })
     .catch(() => showToast('Failed to load data.', 'error'))

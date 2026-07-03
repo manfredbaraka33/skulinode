@@ -64,7 +64,7 @@ function SignatureUpload() {
   async function fetchUserDetails() {
     try {
       const res = await apiClient.get('/user/profile');
-      console.log("Raw user profile data from backend:", res.data);
+      // console.log("Raw user profile data from backend:", res.data);
       setCurrent(res.data.signature_url ?? res.data.signature ?? null);
       setRole(res.data.role);
       setRole(res.data.roles);
