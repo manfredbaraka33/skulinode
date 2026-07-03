@@ -116,6 +116,17 @@ else:
 # Cloudinary configuration
 if USE_CLOUDINARY:
     INSTALLED_APPS += ['cloudinary_storage', 'cloudinary']
+    
+    # Modern Django 4.2+ storage configuration
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    
     CLOUDINARY_STORAGE = {
         'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
         'API_KEY': CLOUDINARY_API_KEY,
@@ -128,6 +139,16 @@ if USE_CLOUDINARY:
         api_secret=CLOUDINARY_API_SECRET,
         secure=True
     )
+else:
+    # Local development storage configuration
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

@@ -53,33 +53,7 @@ export default function SchoolSettingsPage() {
   const [logoError, setLogoError] = useState('');
   const [errors, setErrors]     = useState({});
   const logoRef = useRef();
-
-  // useEffect(() => {
-  //   apiClient.get('/school/')
-  //     .then(r => {console.log(r.data.logo);  setSchool(r.data); setLogoPreview(r.data.logo ?? null); })
-  //     .catch(() => showToast('Failed to load school details.', 'error'))
-  //     .finally(() =>{
-  //       setLoading(false)
-        
-  //     } );
-  // }, []);
-
-
-      // 1. Ensure state is initialized as an array
-    const [staffList, setStaffList] = useState([]);
-
-    // 2. In your useEffect, make sure you are setting the data correctly
-    // useEffect(() => {
-    //   Promise.all([
-    //     apiClient.get('/school/'),
-    //     apiClient.get('/users/') // Ensure this returns a plain list []
-    //   ]).then(([sRes, uRes]) => {
-    //     setSchool(sRes.data);
-    //     // If uRes.data is an object (like {results: [...]}), use uRes.data.results
-    //     setStaffList(Array.isArray(uRes.data) ? uRes.data : (uRes.data.results || []));
-    //     setLoading(false);
-    //   });
-    // }, []);
+  const [staffList, setStaffList] = useState([]);
 
 useEffect(() => {
     Promise.all([
@@ -89,9 +63,9 @@ useEffect(() => {
     .then(([sRes, uRes]) => {
       setSchool(sRes.data);
       
-      // This is the crucial line that was missing in your Promise.all!
-      setLogoPreview(sRes.data.logo ?? null); 
       
+      setLogoPreview(sRes.data.logo ?? null); 
+      console.log(sRes)
       setStaffList(Array.isArray(uRes.data) ? uRes.data : (uRes.data.results || []));
     })
     .catch(() => showToast('Failed to load data.', 'error'))
