@@ -29,7 +29,7 @@ export default function StudentCommentModal({
   student, assessment, snapshot, stream, userRole, editableRoles,
   onClose, onSave, onOpenSettings,
 }) {
-  const { getComments, saveComment, generateComments } = useComments();
+  const { getComments, saveComment, generateComments, deleteComment } = useComments();
 
   const [activeTab,   setActiveTab]   = useState(userRole);
   const [comments,    setComments]    = useState({ class_teacher: null, academic_master: null, headmaster: null });
@@ -88,6 +88,9 @@ export default function StudentCommentModal({
       setDirty(false);
     } finally { setGenerating(false); }
   }
+
+
+ 
 
   const currentComment = comments[activeTab];
   const isMyRole       = editableRoles
@@ -216,6 +219,7 @@ export default function StudentCommentModal({
                 <Save size={13}/> {saving ? 'Inahifadhi...' : 'Hifadhi'}
               </button>
             )}
+            
           </div>
         </div>
       </div>

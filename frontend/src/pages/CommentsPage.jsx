@@ -1,10 +1,14 @@
-/**
- * CommentsPage — Per-role comment management after results are published.
- * Each role sees their students' results and manages comments per student.
- * Route: /:schoolSlug/comments
- */
+// /**
+//  * CommentsPage — Per-role comment management after results are published.
+//  * Each role sees their students' results and manages comments per student.
+//  * Route: /:schoolSlug/comments
+//  */
+
 import { useState, useEffect, useCallback } from 'react';
-import { MessageSquare, Settings, Loader2, ChevronDown, ChevronUp, RotateCcw, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  MessageSquare, Settings, Loader2, RotateCcw, CheckCircle2,
+  AlertCircle, Trash2, ChevronDown,
+} from 'lucide-react';
 import { PageHeader, Toast, useToast } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useComments } from '../hooks/useComments';
@@ -12,50 +16,48 @@ import apiClient from '../api/axios';
 import StudentCommentModal from '../components/StudentCommentModal';
 import CommentSettingsModal from '../components/CommentSettingsModal';
 
-const ROLE_LABEL_MAP = {
-  ADMIN:     'academic_master',
-  TEACHER:  'class_teacher',
-};
+const ROLE_LABEL_MAP = { ADMIN: 'academic_master', TEACHER: 'class_teacher' };
+const GRADE_COLOR = { A: '#15803d', B: '#0369a1', C: '#b45309', D: '#c2410c', F: '#b91c1c' };
 
-const GRADE_COLOR = {
-  A: '#15803d', B: '#0369a1', C: '#b45309', D: '#c2410c', F: '#b91c1c',
-};
+const ADMIN_ROLES = [
+  { value: 'academic_master', label: 'Mwalimu wa Taaluma' },
+  { value: 'headmaster',      label: 'Mkuu wa Shule' },
+];
 
 export default function CommentsPage() {
   const { auth } = useAuth();
-  const { generateComments, getComments, loading: genLoading } = useComments();
+  const { generateComments, clearComments, loading: genLoading } = useComments();
   const [toast, showToast, clearToast] = useToast();
 
-  const userRole = ROLE_LABEL_MAP[auth?.role] ?? 'class_teacher';
+  // For ADMIN: selectable role; for TEACHER: fixed
+  const [adminRole, setAdminRole] = useState('academic_master');
+  const userRole = auth?.role === 'ADMIN'
+    ? adminRole
+    : (ROLE_LABEL_MAP[auth?.role] ?? 'class_teacher');
 
   const [streams,     setStreams]     = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [stream,      setStream]      = useState('');
   const [assessment,  setAssessment]  = useState('');
-
+  const [commentMode, setCommentMode] = useState('single');
+  const [snapshots,   setSnapshots]   = useState([]);
+  const [selectedSnapshot, setSelectedSnapshot] = useState('');
   const [results,     setResults]     = useState([]);
   const [comments,    setComments]    = useState([]);
   const [loadingData, setLoadingData] = useState(false);
-
   const [selectedStudent,   setSelectedStudent]   = useState(null);
   const [showCommentModal,  setShowCommentModal]  = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [generating,        setGenerating]        = useState(false);
+  const [clearing,          setClearing]          = useState(false);
   const [classMasterStreams, setClassMasterStreams] = useState([]);
-  const [commentMode,       setCommentMode]        = useState('single');
-  const [snapshots,         setSnapshots]          = useState([]);
-  const [selectedSnapshot,  setSelectedSnapshot]   = useState('');
-  const [snapshotStudents,  setSnapshotStudents]   = useState([]);
 
   useEffect(() => {
-    const calls = [
-      apiClient.get('/academy/classes/'),
-      apiClient.get('/academy/assessments/'),
-    ];
+    const calls = [apiClient.get('/academy/classes/'), apiClient.get('/academy/assessments/')];
     if (auth?.role === 'TEACHER') calls.push(apiClient.get('/academy/my-class-master-streams/'));
     Promise.all(calls).then(([s, a, cm]) => {
       setStreams(s.data.results ?? s.data);
-      setAssessments((a.data.results ?? a.data).filter(x => !x.is_active === false || true));
+      setAssessments(a.data.results ?? a.data);
       if (cm) setClassMasterStreams((cm.data ?? []).map(x => Number(x.stream_id)));
     });
   }, []);
@@ -63,8 +65,7 @@ export default function CommentsPage() {
   useEffect(() => {
     if (!stream) { setSnapshots([]); return; }
     apiClient.get(`/academy/combined-snapshots/?stream=${stream}`)
-      .then(r => setSnapshots(r.data))
-      .catch(() => setSnapshots([]));
+      .then(r => setSnapshots(r.data)).catch(() => setSnapshots([]));
   }, [stream]);
 
   const load = useCallback(async () => {
@@ -76,14 +77,10 @@ export default function CommentsPage() {
           apiClient.get(`/academy/combined-snapshots/${selectedSnapshot}/`),
           apiClient.get(`/academy/comments/list/?snapshot=${selectedSnapshot}&role=${userRole}`),
         ]);
-        setSnapshotStudents(snapDetail.data.students ?? []);
         setResults(snapDetail.data.students ?? []);
         setComments(c.data);
-      } catch {
-        showToast('Imeshindwa kupakia data.', 'error');
-      } finally {
-        setLoadingData(false);
-      }
+      } catch { showToast('Imeshindwa kupakia.', 'error'); }
+      finally { setLoadingData(false); }
       return;
     }
     if (!stream || !assessment) return;
@@ -95,69 +92,83 @@ export default function CommentsPage() {
       ]);
       setResults(r.data.students ?? []);
       setComments(c.data);
-    } catch {
-      showToast('Failed to load data.', 'error');
-    } finally {
-      setLoadingData(false);
-    }
+    } catch { showToast('Imeshindwa kupakia.', 'error'); }
+    finally { setLoadingData(false); }
   }, [stream, assessment, userRole, commentMode, selectedSnapshot]);
 
   useEffect(() => { load(); }, [load]);
 
-  const commentsMap = Object.fromEntries(
-    comments.map(c => [c.student, c])
-  );
+  const commentsMap = Object.fromEntries(comments.map(c => [c.student, c]));
 
   async function handleGenerateAll() {
     setGenerating(true);
     try {
       const params = commentMode === 'combined'
-        ? { stream, role: userRole, overwriteManual: false, snapshot: selectedSnapshot }
+        ? { stream, role: userRole, snapshot: selectedSnapshot, overwriteManual: false }
         : { stream, assessment, role: userRole, overwriteManual: false };
       const r = await generateComments(params);
-      showToast(`Generated ${r.generated} comments. ${r.skipped_manual} manual comments kept.`, 'success');
+      showToast(`Tengenezwa ${r.generated}. Mkono ${r.skipped_manual} imehifadhiwa.`, 'success');
       await load();
-    } catch {
-      showToast('Failed to generate comments.', 'error');
-    } finally {
-      setGenerating(false);
-    }
+    } catch { showToast('Imeshindwa kutengeza.', 'error'); }
+    finally { setGenerating(false); }
   }
 
-  function openStudent(student) {
-    setSelectedStudent(student);
-    setShowCommentModal(true);
+  async function handleClearAll() {
+    if (!confirm(`Futa maoni YOTE ya "${ADMIN_ROLES.find(r=>r.value===userRole)?.label || userRole}" kwa darasa hili? Haiwezekani kurudisha!`)) return;
+    setClearing(true);
+    try {
+      const params = commentMode === 'combined'
+        ? { role: userRole, snapshot: selectedSnapshot }
+        : { role: userRole, assessment, stream };
+      await clearComments(params);
+      showToast('Maoni yote yamefutwa.', 'success');
+      await load();
+    } catch { showToast('Imeshindwa kufuta.', 'error'); }
+    finally { setClearing(false); }
   }
 
   const canWriteComments = auth?.role === 'ADMIN'
     || (auth?.role === 'TEACHER' && classMasterStreams.includes(Number(stream)));
 
-  const totalStudents   = results.length;
-  const commentedCount  = results.filter(s => commentsMap[s.student_id]).length;
-  const manualCount     = comments.filter(c => c.is_manual).length;
-  const autoCount       = commentedCount - manualCount;
+  const totalStudents  = results.length;
+  const commentedCount = results.filter(s => commentsMap[s.student_id]).length;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      {toast && <Toast {...toast} onClose={clearToast} />}
+      {toast && <Toast {...toast} onClose={clearToast}/>}
 
       <PageHeader
         icon={MessageSquare}
         title="Maoni ya Wanafunzi"
         subtitle="Simamia maoni ya ripoti kwa kila mwanafunzi"
         action={
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowSettingsModal(true)}
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setShowSettingsModal(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
               <Settings size={14}/> Mipangilio
             </button>
-            {stream && assessment && canWriteComments && (
+
+            {/* Clear all — only shown when comments exist */}
+            {(assessment || selectedSnapshot) && stream && canWriteComments && commentedCount > 0 && (
+              <button
+                onClick={handleClearAll}
+                disabled={clearing}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition">
+                {clearing
+                  ? <Loader2 size={14} className="animate-spin"/>
+                  : <Trash2 size={14}/>}
+                Futa Maoni Yote ({commentedCount})
+              </button>
+            )}
+
+            {(assessment || selectedSnapshot) && stream && canWriteComments && (
               <button
                 onClick={handleGenerateAll}
                 disabled={generating}
                 className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition">
-                {generating ? <Loader2 size={14} className="animate-spin"/> : <RotateCcw size={14}/>}
+                {generating
+                  ? <Loader2 size={14} className="animate-spin"/>
+                  : <RotateCcw size={14}/>}
                 Tengeneza Maoni Yote
               </button>
             )}
@@ -166,68 +177,73 @@ export default function CommentsPage() {
       />
 
       {/* Mode toggle */}
-      <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 dark:bg-slate-800 dark:border-slate-600 mb-4">
+      <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 dark:bg-slate-800 dark:border-slate-600 mb-4">
         <button onClick={() => { setCommentMode('single'); setResults([]); setSelectedSnapshot(''); }}
-          className={`px-4 py-1.5 text-xs font-semibold rounded-md transition ${commentMode === 'single' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
+          className={`px-4 py-1.5 text-xs font-semibold rounded-md transition ${commentMode==='single' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
           Tathmini Moja
         </button>
         <button onClick={() => { setCommentMode('combined'); setResults([]); setAssessment(''); }}
-          className={`px-4 py-1.5 text-xs font-semibold rounded-md transition ${commentMode === 'combined' ? 'bg-green-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
+          className={`px-4 py-1.5 text-xs font-semibold rounded-md transition ${commentMode==='combined' ? 'bg-green-600 text-white' : 'text-slate-600 dark:text-slate-200'}`}>
           Matokeo ya Pamoja
         </button>
       </div>
+
+      {/* Role selector for ADMIN */}
+      {auth?.role === 'ADMIN' && (
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-xs text-slate-500 font-medium">Maoni ya:</span>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 dark:bg-slate-800 dark:border-slate-600">
+            {ADMIN_ROLES.map(r => (
+              <button key={r.value} onClick={() => setAdminRole(r.value)}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition ${adminRole===r.value ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-800' : 'text-slate-600 dark:text-slate-300'}`}>
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-slate-400 italic">
+            Badilisha hapa na katika "Mipangilio" ili mipangilio ilingane
+          </span>
+        </div>
+      )}
 
       {/* Selectors */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">Darasa</label>
-          <select
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
+          <select className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
             value={stream} onChange={e => { setStream(e.target.value); setResults([]); }}>
             <option value="">Chagua darasa...</option>
             {streams.map(s => <option key={s.id} value={s.id}>{s.display_label}</option>)}
           </select>
         </div>
-        {commentMode !== 'combined' && 
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Tathmini</label>
-          <select
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
-            value={assessment} onChange={e => { setAssessment(e.target.value); setResults([]); }}>
-            <option value="">Chagua tathmini...</option>
-            {assessments.map(a => <option key={a.id} value={a.id}>{a.name} ({a.academic_year})</option>)}
-          </select>
-        </div>
-        }
-        {commentMode === 'combined' && stream && (
+        {commentMode === 'single' ? (
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Matokeo Yaliyohifadhiwa</label>
-            <select value={selectedSnapshot}
-              onChange={e => { setSelectedSnapshot(e.target.value); setResults([]); }}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-64">
-              <option value="">Chagua matokeo ya pamoja...</option>
-              {snapshots.map(s => (
-                <option key={s.id} value={s.id}>{s.name} · {s.student_count} wanafunzi</option>
-              ))}
+            <label className="block text-xs font-medium text-slate-500 mb-1">Tathmini</label>
+            <select className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-44"
+              value={assessment} onChange={e => { setAssessment(e.target.value); setResults([]); }}>
+              <option value="">Chagua tathmini...</option>
+              {assessments.map(a => <option key={a.id} value={a.id}>{a.name} ({a.academic_year})</option>)}
             </select>
           </div>
-        )}
-        {commentMode === 'combined' && stream && snapshots.length === 0 && (
-          <p className="text-xs text-amber-600 py-2">
-            Hakuna matokeo ya pamoja yaliyohifadhiwa kwa darasa hili.
-            Chapisha matokeo ya pamoja kwanza ukurasa wa matokeo.
-          </p>
+        ) : (
+          stream && (
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Matokeo Yaliyohifadhiwa</label>
+              <select value={selectedSnapshot} onChange={e => { setSelectedSnapshot(e.target.value); setResults([]); }}
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 min-w-64">
+                <option value="">Chagua matokeo ya pamoja...</option>
+                {snapshots.map(s => <option key={s.id} value={s.id}>{s.name} · {s.student_count} wanafunzi</option>)}
+              </select>
+            </div>
+          )
         )}
       </div>
 
-      {/* Class master warning for teachers */}
+      {/* Class master warning */}
       {auth?.role === 'TEACHER' && stream && !canWriteComments && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300">
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertCircle size={16} className="mt-0.5 shrink-0"/>
-          <span>
-            Huna ruhusa ya kuandika maoni kwa darasa hili.
-            Msimamizi anahitaji kukupewa nafasi ya Mwalimu wa Darasa kwanza.
-          </span>
+          Huna ruhusa ya kuandika maoni kwa darasa hili. Msimamizi anahitaji kukupewa nafasi ya Mwalimu wa Darasa kwanza.
         </div>
       )}
 
@@ -247,23 +263,19 @@ export default function CommentsPage() {
         </div>
       )}
 
-      {loadingData && (
-        <div className="flex justify-center py-16">
-          <Loader2 size={28} className="animate-spin text-blue-500"/>
-        </div>
-      )}
+      {loadingData && <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-blue-500"/></div>}
 
       {!loadingData && results.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-auto">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">#</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Jina</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Wastani</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Daraja</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Maoni</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Hali</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">#</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Jina</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Wastani</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Daraja</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Maoni</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Hali</th>
               </tr>
             </thead>
             <tbody>
@@ -271,32 +283,27 @@ export default function CommentsPage() {
                 const comment = commentsMap[student.student_id];
                 const grade   = student.grade || '-';
                 return (
-                  <tr
-                    key={student.student_id}
-                    onClick={() => openStudent(student)}
+                  <tr key={student.student_id}
+                    onClick={() => { setSelectedStudent(student); setShowCommentModal(true); }}
                     className="border-b border-slate-100 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-slate-700/50 cursor-pointer transition">
                     <td className="px-4 py-3 text-slate-400 text-xs">{student.rank ?? i + 1}</td>
                     <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{student.display_name}</td>
                     <td className="px-4 py-3 text-center font-mono font-semibold text-slate-700 dark:text-slate-200">
-                      {student.average ?? '–'}%
+                      {student.average != null ? `${student.average}%` : '—'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className="inline-block px-2 py-0.5 rounded text-white text-xs font-bold"
-                        style={{ background: GRADE_COLOR[grade] ?? '#64748b' }}>
-                        {grade}
-                      </span>
+                        style={{ background: GRADE_COLOR[grade] ?? '#64748b' }}>{grade}</span>
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs max-w-xs truncate">
                       {comment ? comment.comment_text : <span className="italic text-slate-300">Hakuna maoni</span>}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {comment ? (
-                        comment.is_manual
+                      {comment
+                        ? comment.is_manual
                           ? <span className="flex items-center justify-center gap-1 text-xs text-amber-600"><AlertCircle size={12}/> Mkono</span>
                           : <span className="flex items-center justify-center gap-1 text-xs text-green-600"><CheckCircle2 size={12}/> Auto</span>
-                      ) : (
-                        <span className="text-xs text-slate-300">–</span>
-                      )}
+                        : <span className="text-xs text-slate-300">–</span>}
                     </td>
                   </tr>
                 );
@@ -306,7 +313,7 @@ export default function CommentsPage() {
         </div>
       )}
 
-      {!loadingData && stream && assessment && results.length === 0 && (
+      {!loadingData && stream && (assessment || selectedSnapshot) && results.length === 0 && (
         <div className="text-center py-16 text-slate-400 text-sm">
           Hakuna matokeo. Hakikisha matokeo yamechapishwa kwanza.
         </div>
@@ -322,31 +329,23 @@ export default function CommentsPage() {
           editableRoles={
             auth?.role === 'ADMIN'
               ? ['academic_master', 'headmaster']
-              : canWriteComments
-              ? ['class_teacher']
-              : []
+              : canWriteComments ? ['class_teacher'] : []
           }
-          onClose={() => {
-             setShowCommentModal(false); 
-            setSelectedStudent(null);
-             load();
-          }}
+          onClose={() => { setShowCommentModal(false); setSelectedStudent(null); }}
           onSave={() => load()}
-          onOpenSettings={() => { 
-            setShowCommentModal(false);
-             setShowSettingsModal(true);
-           
-            }}
+          onOpenSettings={() => { setShowCommentModal(false); setShowSettingsModal(true); }}
         />
       )}
 
       {showSettingsModal && (
         <CommentSettingsModal
-          onClose={() => { 
-            setShowSettingsModal(false); 
-            if (selectedStudent) setShowCommentModal(true);
-             load();
-          }}
+          activeRoleOverride={auth?.role === 'ADMIN' ? adminRole : undefined}
+          visibleRoles={
+                auth?.role === 'ADMIN'
+                  ? ['academic_master', 'headmaster']
+                  : ['class_teacher']
+              }
+          onClose={() => { setShowSettingsModal(false); if (selectedStudent) setShowCommentModal(true); }}
           assessmentId={assessment}
           streamId={stream}
           sampleStudentId={results[0]?.student_id}

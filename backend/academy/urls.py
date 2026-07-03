@@ -47,6 +47,7 @@ from academy.comment_views import (
     CommentTemplateListView, CommentTemplateDetailView,
     SystemCommentTemplatesView, GenerateCommentsView,
     StudentCommentListView, StudentCommentSaveView, CommentPreviewView,
+    CommentClearView
 )
 
 
@@ -129,6 +130,7 @@ urlpatterns = [
     path('comment-templates/',           CommentTemplateListView.as_view(),    name='comment_template_list'),
     path('comment-templates/system/',    SystemCommentTemplatesView.as_view(), name='comment_template_system'),
     path('comment-templates/<int:pk>/',  CommentTemplateDetailView.as_view(),  name='comment_template_detail'),
+    path('comments/clear/', CommentClearView.as_view(), name='comment_clear'),
 
     # Student comments
     path('comments/',                    StudentCommentSaveView.as_view(),     name='comment_save'),

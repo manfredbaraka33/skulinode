@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import {
   School, LayoutDashboard, GraduationCap, BookOpen, LayoutGrid,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../hooks/useDarkMode';
+import apiClient from '../api/axios';
 
 const ROLE_BADGE = {
   ADMIN:   { label: 'School Admin',    color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' },
@@ -76,8 +77,31 @@ export default function Dashboard() {
   const slug = auth?.schoolSlug ?? '';
   const badge = ROLE_BADGE[auth?.role] ?? { label: auth?.role, color: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' };
 
+
+  const [isClassMaster, setIsClassMaster] = useState(false);
+
+  useEffect(() => {
+  // 1. Guard clause: Exit early if the user is not a teacher
+  if (!isTeacher) return;
+
+  // 2. Make the API call directly using your existing apiClient
+  apiClient.get('/academy/my-class-master-streams/')
+    .then(r => {
+      // Check if data exists and has at least one item
+      const hasAssignments = Array.isArray(r.data) && r.data.length > 0;
+      setIsClassMaster(hasAssignments);
+    })
+    .catch((error) => {
+      console.error("Failed to fetch class master status:", error);
+      setIsClassMaster(false); // Safe fallback on error
+    });
+    
+}, [isTeacher]); // Runs whenever the isTeacher status changes
+
   function handleLogout() {
-    logout();
+    logout();{(isAdmin || isTeacher) && (
+  <SidebarLink to={`/${slug}/comments`} icon={MessageSquare} label="Comments" onClick={onClose} collapsed={isCollapsed} />
+)}
     navigate('/login', { replace: true });
   }
   
@@ -136,7 +160,7 @@ export default function Dashboard() {
               <SidebarLink to={`/${slug}/class-masters`} icon={Users}        label="Class Masters" onClick={onClose} collapsed={isCollapsed} />
 
               <SidebarSection label="Results" collapsed={isCollapsed} />
-              <SidebarLink to={`/${slug}/results`}         icon={BarChart2}         label="Live Results"     onClick={onClose} collapsed={isCollapsed} />
+              <SidebarLink to={`/${slug}/results`}         icon={BarChart2}         label="Results"     onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/report-cards`}    icon={FileText}          label="Report Cards"     onClick={onClose} collapsed={isCollapsed} />
               <SidebarSection label="School" collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/settings`}        icon={Settings}          label="School Settings"  onClick={onClose} collapsed={isCollapsed} />
@@ -153,7 +177,7 @@ export default function Dashboard() {
             </>
           )}
 
-          {(isAdmin || isTeacher) && (
+          {(isAdmin || (isTeacher && isClassMaster)) && (
               <SidebarLink to={`/${slug}/comments`} icon={MessageSquare} label="Comments" onClick={onClose} collapsed={isCollapsed} />
             )}
 

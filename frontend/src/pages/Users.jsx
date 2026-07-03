@@ -334,122 +334,129 @@ function AddStaffModal({ accessToken, onClose, onSuccess, onError }) {
 
   return (
     <Modal title="Add Staff Member" onClose={onClose}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">First Name</label>
-            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-              {...register('first_name', { required: 'Required' })} />
-            <FieldError message={errors.first_name?.message} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Last Name</label>
-            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-              {...register('last_name', { required: 'Required' })} />
-            <FieldError message={errors.last_name?.message} />
-          </div>
-        </div>
-
+  {/* The Fix: This wrapper strictly controls the height. 
+    It will never exceed 65% of the screen, forcing the scrollbar to appear 
+    here instead of expanding the outer modal box.
+  */}
+  <div className="max-h-[65vh] overflow-y-auto p-2">
+    
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Email Address</label>
-          <input type="email" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            {...register('email', {
+          <label className="block text-xs font-medium text-slate-600 mb-1">First Name</label>
+          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            {...register('first_name', { required: 'Required' })} />
+          <FieldError message={errors.first_name?.message} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Last Name</label>
+          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            {...register('last_name', { required: 'Required' })} />
+          <FieldError message={errors.last_name?.message} />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Email Address</label>
+        <input type="email" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          {...register('email', {
+            required: 'Required',
+            pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email' },
+            onChange: (e) => {
+              const prefix = e.target.value.split('@')[0].toLowerCase().replace(/[^a-z0-9._+@-]/g, '');
+              if (prefix) setValue('username', prefix, { shouldDirty: false });
+            },
+          })} />
+        <FieldError message={errors.email?.message} />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Username</label>
+        <input type="text" className={`w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${
+          errors.username ? 'border-red-400' : 'border-slate-200'
+        }`}
+          placeholder="e.g. john.doe"
+          autoComplete="username"
+          {...register('username', {
+            required: 'Required',
+            pattern: { value: /^[\w.@+-]+$/, message: 'Letters, digits, and .@+-_ only' },
+          })} />
+        <FieldError message={errors.username?.message} />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Primary Role</label>
+        <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          {...register('role', { required: 'Required' })}>
+          <option value="">Select role…</option>
+          {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+        </select>
+        <FieldError message={errors.role?.message} />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-2">
+          Additional Roles <span className="text-slate-400 font-normal">(optional)</span>
+        </label>
+        {!primaryRole ? (
+          <p className="text-xs text-slate-400 italic">Select a primary role first</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {ROLES.filter(r => r.value !== primaryRole).map(r => (
+              <button
+                key={r.value}
+                type="button"
+                onClick={() => toggleRole(r.value)}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition
+                  ${additionalRoles.includes(r.value)
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Password</label>
+        <div className="relative">
+          <input type={showPw ? 'text' : 'password'} className="w-full border border-slate-200 rounded-lg px-3 py-2 pr-9 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Min. 8 characters"
+            {...register('password', {
               required: 'Required',
-              pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email' },
-              onChange: (e) => {
-                const prefix = e.target.value.split('@')[0].toLowerCase().replace(/[^a-z0-9._+@-]/g, '');
-                if (prefix) setValue('username', prefix, { shouldDirty: false });
-              },
+              minLength: { value: 8, message: 'Min 8 characters' }
             })} />
-          <FieldError message={errors.email?.message} />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Username</label>
-          <input type="text" className={`w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.username ? 'border-red-400' : 'border-slate-200'
-          }`}
-            placeholder="e.g. john.doe"
-            autoComplete="username"
-            {...register('username', {
-              required: 'Required',
-              pattern: { value: /^[\w.@+-]+$/, message: 'Letters, digits, and .@+-_ only' },
-            })} />
-          <FieldError message={errors.username?.message} />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Primary Role</label>
-          <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            {...register('role', { required: 'Required' })}>
-            <option value="">Select role…</option>
-            {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-          </select>
-          <FieldError message={errors.role?.message} />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-2">
-            Additional Roles <span className="text-slate-400 font-normal">(optional)</span>
-          </label>
-          {!primaryRole ? (
-            <p className="text-xs text-slate-400 italic">Select a primary role first</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {ROLES.filter(r => r.value !== primaryRole).map(r => (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => toggleRole(r.value)}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition
-                    ${additionalRoles.includes(r.value)
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Password</label>
-          <div className="relative">
-            <input type={showPw ? 'text' : 'password'} className="w-full border border-slate-200 rounded-lg px-3 py-2 pr-9 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Min. 8 characters"
-              {...register('password', {
-                required: 'Required',
-                minLength: { value: 8, message: 'Min 8 characters' }
-              })} />
-            <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
-          </div>
-          <FieldError message={errors.password?.message} />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Phone Number <span className="text-slate-400 font-normal">(optional)</span></label>
-          <input type="tel" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="+255712345678"
-            {...register('phone_number')} />
-        </div>
-
-        <div className="flex gap-3 justify-end pt-2">
-          <button type="button" onClick={onClose}
-            className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
-            Cancel
-          </button>
-          <button type="submit" disabled={isSubmitting}
-            className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60">
-            {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-            Add Member
+          <button type="button" tabIndex={-1} onClick={() => setShowPw(v => !v)}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
-      </form>
-    </Modal>
+        <FieldError message={errors.password?.message} />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Phone Number <span className="text-slate-400 font-normal">(optional)</span></label>
+        <input type="tel" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="+255712345678"
+          {...register('phone_number')} />
+      </div>
+
+      <div className="flex gap-3 justify-end pt-4 mt-2 border-t border-slate-100">
+        <button type="button" onClick={onClose}
+          className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+          Cancel
+        </button>
+        <button type="submit" disabled={isSubmitting}
+          className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60">
+          {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+          Add Member
+        </button>
+      </div>
+    </form>
+  </div>
+</Modal>
   );
 }
 

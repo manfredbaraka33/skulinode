@@ -23,10 +23,11 @@ const BANDS = [
 
 const VARS = ['{name}','{avg}','{grade}','{best_subject}','{weak_subject}','{division}','{points}','{position}','{total}'];
 
-export default function CommentSettingsModal({ onClose, assessmentId, streamId, sampleStudentId }) {
+export default function CommentSettingsModal({ onClose, assessmentId, streamId, sampleStudentId,activeRoleOverride,visibleRoles }) {
   const { getTemplates, getSystemTemplates, saveTemplate, deleteTemplate, previewComment } = useComments();
 
-  const [activeRole,    setActiveRole]    = useState('class_teacher');
+  // const [activeRole,    setActiveRole]    = useState('class_teacher');
+  const [activeRole, setActiveRole] = useState(activeRoleOverride || 'class_teacher');
   const [templates,     setTemplates]     = useState({});
   const [systemTpls,    setSystemTpls]    = useState({});
   const [dirty,         setDirty]         = useState({});
@@ -107,9 +108,9 @@ export default function CommentSettingsModal({ onClose, assessmentId, streamId, 
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"><X size={16}/></button>
         </div>
 
-        {/* Role tabs */}
+        {/* Role tabs — only show roles this user can edit */}
         <div className="flex border-b border-slate-200 dark:border-slate-700 px-4">
-          {ROLES.map(r => (
+          {ROLES.filter(r => !visibleRoles || visibleRoles.includes(r.key)).map(r => (
             <button key={r.key} onClick={() => setActiveRole(r.key)}
               className={`px-4 py-3 text-xs font-semibold transition border-b-2 ${
                 activeRole === r.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'

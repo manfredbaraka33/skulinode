@@ -71,9 +71,29 @@ export function useComments() {
     return r.data;
   }, []);
 
+
+  const clearComments = useCallback(async ({ assessment, stream, role, snapshot }) => {
+  setLoading(true);
+  try {
+    const p = new URLSearchParams({ role });
+    if (snapshot) p.append('snapshot', snapshot);
+    else { if (assessment) p.append('assessment', assessment); if (stream) p.append('stream', stream); }
+    const r = await apiClient.delete(`/academy/comments/clear/?${p}`);
+    return r.data;
+  } catch (e) {
+    setError(e.message);
+    throw e;
+  } finally { setLoading(false); }
+}, []);
+
+const deleteComment = useCallback(async (pk) => {
+  await apiClient.delete(`/academy/comments/${pk}/`);
+}, []);
+
   return {
     loading, error,
     getTemplates, getSystemTemplates, saveTemplate, deleteTemplate,
     generateComments, getComments, saveComment, updateComment, previewComment,
+    clearComments,deleteComment
   };
 }

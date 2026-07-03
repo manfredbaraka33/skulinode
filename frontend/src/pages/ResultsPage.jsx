@@ -567,7 +567,7 @@ export default function ResultsPage() {
         </div>
       )}
 
-      <PageHeader icon={BarChart2} title="Live Results" subtitle="Real-time standings as marks are collected"
+      <PageHeader icon={BarChart2} title="Results" subtitle="Standings as marks are collected"
         action={
           <div className="flex gap-2 flex-wrap">
             <button onClick={loadResults} disabled={mode === 'single' ? !canGenerateSingle || loading : !canGenerateCombined || loading}

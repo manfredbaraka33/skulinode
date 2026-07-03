@@ -54,21 +54,24 @@ def _student_data(student, subjects, marks_map, exclusions, grade_configs, schoo
 
 def _pick_template(user, role, school, avg):
     """
-    Level 2 (user templates) → Level 1 (system defaults).
-    Returns the best matching template text.
+    Match template by lower bound only — avoids decimal gaps between bands.
+    Templates ordered descending by min_score, so first match where avg >= min wins.
     """
     avg_f = float(avg) if avg is not None else 0.0
 
+    # User custom templates first
     for t in CommentTemplate.objects.filter(
         school=school, created_by=user, role=role,
-    ).order_by('-min_score').values('min_score', 'max_score', 'template_text'):
-        if float(t['min_score']) <= avg_f <= float(t['max_score']):
+    ).order_by('-min_score').values('min_score', 'template_text'):
+        if avg_f >= float(t['min_score']):
             return t['template_text']
 
+    # System defaults
     for t in SYSTEM_COMMENT_TEMPLATES.get(role, []):
-        if t['min'] <= avg_f <= t['max']:
+        if avg_f >= t['min']:
             return t['text']
 
+    # Absolute fallback — should never reach here
     sys_tpls = SYSTEM_COMMENT_TEMPLATES.get(role, [])
     return sys_tpls[-1]['text'] if sys_tpls else '{name} — maoni hayajaandikwa.'
 
@@ -294,6 +297,38 @@ class GenerateCommentsView(APIView):
         return Response({'generated': generated, 'skipped_manual': skipped})
 
 
+
+class CommentClearView(APIView):
+    """DELETE /api/v1/academy/comments/clear/?assessment=&stream=&role= (or ?snapshot=&role=)"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        school        = _school(request)
+        role          = request.query_params.get('role')
+        assessment_id = request.query_params.get('assessment')
+        stream_id     = request.query_params.get('stream')
+        snapshot_id   = request.query_params.get('snapshot')
+
+        if not role:
+            return Response({'error': 'role is required.'}, status=400)
+
+        if snapshot_id:
+            deleted, _ = StudentComment.objects.filter(
+                school=school, snapshot_id=snapshot_id, role=role,
+            ).delete()
+        else:
+            if not assessment_id or not stream_id:
+                return Response({'error': 'assessment and stream are required (or snapshot).'}, status=400)
+            deleted, _ = StudentComment.objects.filter(
+                school=school, assessment_id=assessment_id,
+                student__stream_id=stream_id, role=role,
+            ).delete()
+
+        return Response({'deleted': deleted})
+
+
+
+
 class StudentCommentListView(APIView):
     """
     GET /api/v1/academy/comments/list/?assessment=&stream=&role=
@@ -452,3 +487,6 @@ class CommentPreviewView(APIView):
             'best_subject': sd['best_subject'],
             'weak_subject': sd['weak_subject'],
         })
+
+
+
