@@ -56,9 +56,12 @@ export default function SchoolSettingsPage() {
 
   useEffect(() => {
     apiClient.get('/school/')
-      .then(r => { setSchool(r.data); setLogoPreview(r.data.logo ?? null); })
+      .then(r => {console.log(r);  setSchool(r.data); setLogoPreview(r.data.logo ?? null); })
       .catch(() => showToast('Failed to load school details.', 'error'))
-      .finally(() => setLoading(false));
+      .finally(() =>{
+        setLoading(false)
+        
+      } );
   }, []);
 
 
