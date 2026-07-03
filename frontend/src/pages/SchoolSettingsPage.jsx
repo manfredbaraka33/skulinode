@@ -54,32 +54,49 @@ export default function SchoolSettingsPage() {
   const [errors, setErrors]     = useState({});
   const logoRef = useRef();
 
-  useEffect(() => {
-    apiClient.get('/school/')
-      .then(r => {console.log(r);  setSchool(r.data); setLogoPreview(r.data.logo ?? null); })
-      .catch(() => showToast('Failed to load school details.', 'error'))
-      .finally(() =>{
-        setLoading(false)
+  // useEffect(() => {
+  //   apiClient.get('/school/')
+  //     .then(r => {console.log(r.data.logo);  setSchool(r.data); setLogoPreview(r.data.logo ?? null); })
+  //     .catch(() => showToast('Failed to load school details.', 'error'))
+  //     .finally(() =>{
+  //       setLoading(false)
         
-      } );
-  }, []);
+  //     } );
+  // }, []);
 
 
       // 1. Ensure state is initialized as an array
     const [staffList, setStaffList] = useState([]);
 
     // 2. In your useEffect, make sure you are setting the data correctly
-    useEffect(() => {
-      Promise.all([
-        apiClient.get('/school/'),
-        apiClient.get('/users/') // Ensure this returns a plain list []
-      ]).then(([sRes, uRes]) => {
-        setSchool(sRes.data);
-        // If uRes.data is an object (like {results: [...]}), use uRes.data.results
-        setStaffList(Array.isArray(uRes.data) ? uRes.data : (uRes.data.results || []));
-        setLoading(false);
-      });
-    }, []);
+    // useEffect(() => {
+    //   Promise.all([
+    //     apiClient.get('/school/'),
+    //     apiClient.get('/users/') // Ensure this returns a plain list []
+    //   ]).then(([sRes, uRes]) => {
+    //     setSchool(sRes.data);
+    //     // If uRes.data is an object (like {results: [...]}), use uRes.data.results
+    //     setStaffList(Array.isArray(uRes.data) ? uRes.data : (uRes.data.results || []));
+    //     setLoading(false);
+    //   });
+    // }, []);
+
+useEffect(() => {
+    Promise.all([
+      apiClient.get('/school/'),
+      apiClient.get('/users/') 
+    ])
+    .then(([sRes, uRes]) => {
+      setSchool(sRes.data);
+      
+      // This is the crucial line that was missing in your Promise.all!
+      setLogoPreview(sRes.data.logo ?? null); 
+      
+      setStaffList(Array.isArray(uRes.data) ? uRes.data : (uRes.data.results || []));
+    })
+    .catch(() => showToast('Failed to load data.', 'error'))
+    .finally(() => setLoading(false));
+  }, []); // Run exactly once
 
 
   function handleChange(field, val) {
@@ -312,7 +329,7 @@ export default function SchoolSettingsPage() {
                     src={logoPreview}
                     alt="School logo"
                     className="w-24 h-24 rounded-full object-contain border-2 border-slate-200 dark:border-slate-600 bg-white"
-                    onError={() => setLogoPreview(null)}
+                    // onError={() => setLogoPreview(null)}
                   />
                 ) : (
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-700">
