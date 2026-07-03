@@ -181,7 +181,20 @@ class StudentListCreateView(ListCreateAPIView):
         stream = self.request.query_params.get('stream')
         if stream:
             qs = qs.filter(stream_id=stream)
-        return qs
+        return qs.order_by('gender','first_name')
+    
+    def list(self, request, *args, **kwargs):
+        # 4. ADDED: Check for ?all=true to bypass pagination safely
+        if request.query_params.get('all') == 'true':
+            queryset = self.filter_queryset(self.get_queryset())
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({
+                'count':   queryset.count(),
+                'results': serializer.data,
+            })
+            
+        # Otherwise, perform standard paginated listing
+        return super().list(request, *args, **kwargs)
 
 
 class StudentDetailView(RetrieveUpdateDestroyAPIView):
@@ -241,7 +254,7 @@ class MarkListView(APIView):
 
         students = Student.objects.filter(
             school=school, stream_id=stream_id
-        ).exclude(id__in=excluded_ids).order_by('gender', 'last_name', 'first_name')
+        ).exclude(id__in=excluded_ids).order_by('gender','first_name')
 
         # Fetch existing marks
         marks_map = {

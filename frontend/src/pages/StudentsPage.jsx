@@ -7,7 +7,7 @@ import apiClient from '../api/axios';
 
 const GENDER_LABEL = { M: 'Male', F: 'Female' };
 
-/* â”€â”€ CSV template headers and example row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
 const CSV_HEADERS = ['first_name', 'middle_name', 'last_name', 'gender', 'class_label', 'admission_number', 'parent_phone'];
 
 function downloadTemplate(streams) {
@@ -50,6 +50,7 @@ export default function StudentsPage() {
   const { auth } = useAuth();
   const [toast, showToast, clearToast] = useToast();
   const [students, setStudents] = useState([]);
+  const [totalCount,  setTotalCount]  = useState(0);
   const [streams, setStreams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -63,10 +64,12 @@ export default function StudentsPage() {
     try {
       const [sRes, stRes] = await Promise.all([
         apiClient.get('/academy/classes/'),
-        apiClient.get('/academy/students/'),
+        apiClient.get('/academy/students/?all=true'),
       ]);
       setStreams(sRes.data.results ?? sRes.data);
-      setStudents(stRes.data.results ?? stRes.data);
+      const stData = stRes.data;
+      setStudents(stData.results ?? stData);
+      setTotalCount(stData.count ?? (stData.results ?? stData).length);
     } catch { showToast('Failed to load.', 'error'); }
     finally { setLoading(false); }
   }, []);
@@ -114,7 +117,7 @@ export default function StudentsPage() {
       <PageHeader
         icon={Users}
         title="Students"
-        subtitle={`${students.length} student${students.length !== 1 ? 's' : ''} registered`}
+        subtitle={`${totalCount} student${totalCount !== 1 ? 's' : ''} registered`}
         action={
           <div className="flex gap-2">
             <button
@@ -173,17 +176,20 @@ export default function StudentsPage() {
               <EmptyState message={search ? 'No results found.' : 'No students yet. Register your first student!'} />
             ) : (
               <div className="overflow-x-auto">
+                <p className='dark:text-gray-100 px-4'>Showing {filtered.length}</p>
               <table className="w-full text-sm min-w-160">
+                
                 <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
                   <tr>
-                    {['Name', 'Gender', 'Class', 'Parent Phone', 'Adm. No.', 'Actions'].map(h => (
+                    {['#','Name', 'Gender', 'Class', 'Parent Phone', 'Adm. No.', 'Actions'].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {filtered.map(s => (
+                  {filtered.map((s,i) => (
                     <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{i+1}</td>
                       <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{s.display_name}</td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{GENDER_LABEL[s.gender] ?? s.gender}</td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{s.stream_label}</td>
@@ -384,7 +390,7 @@ function BulkUploadPanel({ streams, onSuccess }) {
   );
 }
 
-/* â”€â”€â”€ Student Form Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
 function StudentFormModal({ student, streams, onClose, onSuccess, onError }) {
   const { auth } = useAuth();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
