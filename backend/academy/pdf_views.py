@@ -960,7 +960,7 @@ class MarkSheetPDFView(APIView):
         students = list(
             Student.objects.filter(school=school, stream_id=stream_id)
             .exclude(id__in=excluded_ids)
-            .order_by('gender', 'last_name', 'first_name')
+            .order_by('gender','first_name')
         )
 
         marks_map = {
