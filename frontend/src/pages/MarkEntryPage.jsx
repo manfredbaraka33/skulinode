@@ -436,13 +436,13 @@ function MarkConsole({ assignment, onBack, showToast }) {
           {/* Mark entry table */}
           <div>
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
+              <div className="max-h-125 overflow-auto">
               <table className="w-full text-sm min-w-120">
-                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+                <thead className="bg-slate-50 sticky top-0 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">#</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Student Name</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">G</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Gender</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase w-28">Score /100</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Grade</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>

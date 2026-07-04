@@ -177,36 +177,44 @@ export default function StudentsPage() {
             ) : (
               <div className="overflow-x-auto">
                 <p className='dark:text-gray-100 px-4'>Showing {filtered.length}</p>
-              <table className="w-full text-sm min-w-160">
-                
-                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
-                  <tr>
-                    {['#','Name', 'Gender', 'Class', 'Parent Phone', 'Adm. No.', 'Actions'].map(h => (
-                      <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {filtered.map((s,i) => (
-                    <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
-                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{i+1}</td>
-                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{s.display_name}</td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{GENDER_LABEL[s.gender] ?? s.gender}</td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{s.stream_label}</td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{s.parent_phone || '—'}</td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs">{s.admission_number || '—'}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <button title="Edit" onClick={() => setEditItem(s)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition"><Pencil size={14} /></button>
-                          <button title="Delete" onClick={() => remove(s.id)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition"><Trash2 size={14} /></button>
-                        </div>
-                      </td>
+             
+              
+              <div className="max-h-[500px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg">
+                <table className="w-full text-sm min-w-160 border-collapse">
+                  
+                  <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10 border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                      {['#','Name', 'Gender', 'Class', 'Parent Phone', 'Adm. No.', 'Actions'].map(h => (
+                       
+                        <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide bg-slate-50 dark:bg-slate-800">
+                          {h}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {filtered.map((s,i) => (
+                      <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{i+1}</td>
+                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{s.display_name}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{GENDER_LABEL[s.gender] ?? s.gender}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{s.stream_label}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{s.parent_phone || '—'}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs">{s.admission_number || '—'}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1">
+                            <button title="Edit" onClick={() => setEditItem(s)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition"><Pencil size={14} /></button>
+                            <button title="Delete" onClick={() => remove(s.id)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition"><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               </div>
             )}
           </div>
@@ -221,7 +229,7 @@ export default function StudentsPage() {
   );
 }
 
-/* â”€â”€â”€ Bulk Upload Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
 function BulkUploadPanel({ streams, onSuccess }) {
   const { auth } = useAuth();
   const fileRef = useRef();
