@@ -266,7 +266,7 @@ export default function CommentsPage() {
       {loadingData && <div className="flex justify-center py-16"><Loader2 size={28} className="animate-spin text-blue-500"/></div>}
 
       {!loadingData && results.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 max-h-125 rounded-xl border border-slate-200 dark:border-slate-700 overflow-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
