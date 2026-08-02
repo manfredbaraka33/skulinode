@@ -27,6 +27,8 @@ import ClassMastersPage from './pages/ClassMastersPage';
 import TermCircularPage from './pages/TermCircularPage';
 import NectaDashboard from './pages/necta/NectaDashboard';
 import SchoolProfile from './pages/necta/SchoolProfile';
+import LandingPage from './pages/LandingPage';
+import ComingSoonPage from './pages/ComingSoonPage';
 
 
 function App() {
@@ -35,8 +37,24 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Public */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/necta" element={<NectaDashboard />} />
           <Route path="/necta/shule/:centerId" element={<SchoolProfile />} />
+          <Route path="/past-papers" element={
+          <ComingSoonPage
+            icon="📝"
+            title="Maswali ya Zamani"
+            description="Tunatengeneza maktaba ya maswali ya NECTA ya miaka iliyopita, yakiwa yamepangwa kwa somo na mada. Inakuja hivi karibuni."
+          />
+        } />
+
+        <Route path="/tcu" element={
+          <ComingSoonPage
+            icon="🎓"
+            title="Kikokotoo cha TCU"
+            description="Hesabu pointi zako za TCU na uone programu na vyuo unavyostahili — kutoka mwongozo rasmi wa TCU. Inakuja hivi karibuni."
+          />
+        } />
           <Route path="/login" element={<Login />} />
           <Route path="/register-school" element={<RegisterSchool />} />
           <Route path="/pending-verification" element={<PendingVerification />} />
@@ -70,8 +88,8 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* <Route path="/" element={<Navigate to="/login" replace />} /> */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
