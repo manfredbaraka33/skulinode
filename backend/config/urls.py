@@ -13,6 +13,7 @@ admin.site.index_title = "Welcome to the SkuliNode Admin Portal"
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('api.urls')),
+    path('api/public/necta/', include('necta_results.urls')),
 
 ]
 

@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'core',
     'api',
     'academy',
+    'necta_results'
 ]
 
 MIDDLEWARE = [

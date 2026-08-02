@@ -25,6 +25,8 @@ import CommentsPage from './pages/CommentsPage';
 import FinancePage from './pages/FinancePage';
 import ClassMastersPage from './pages/ClassMastersPage';
 import TermCircularPage from './pages/TermCircularPage';
+import NectaDashboard from './pages/necta/NectaDashboard';
+import SchoolProfile from './pages/necta/SchoolProfile';
 
 
 function App() {
@@ -33,6 +35,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Public */}
+          <Route path="/necta" element={<NectaDashboard />} />
+          <Route path="/necta/shule/:centerId" element={<SchoolProfile />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register-school" element={<RegisterSchool />} />
           <Route path="/pending-verification" element={<PendingVerification />} />
