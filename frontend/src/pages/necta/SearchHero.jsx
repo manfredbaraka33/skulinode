@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Search } from 'lucide-react';
 
-const API = 'http://127.0.0.1:8000/api/public/necta';
+import { NECTA_API as API } from '../../config/api';
 
 export default function SearchHero({ level, year }) {
   const [query, setQuery] = useState('');

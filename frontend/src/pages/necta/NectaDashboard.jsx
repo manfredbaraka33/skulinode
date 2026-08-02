@@ -9,7 +9,7 @@ import SubjectLeaderboard from './SubjectLeaderboard';
 import HiddenGems from './HiddenGems';
 import RankingsTable from './RankingsTable';
 
-const API = 'http://127.0.0.1:8000/api/public/necta';
+import { NECTA_API as API } from '../../config/api';
 
 export default function NectaDashboard() {
   const [level] = useState('ACSEE');

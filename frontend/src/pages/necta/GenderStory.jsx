@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = 'http://127.0.0.1:8000/api/public/necta';
+import { NECTA_API as API } from '../../config/api';
 
 export default function GenderStory({ level, year }) {
   const [data, setData] = useState(null);

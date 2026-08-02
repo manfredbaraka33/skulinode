@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../hooks/useDarkMode';
 import apiClient from '../api/axios';
 
+
 const ROLE_BADGE = {
   ADMIN:   { label: 'School Admin',    color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' },
   TEACHER: { label: 'Teacher',         color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },

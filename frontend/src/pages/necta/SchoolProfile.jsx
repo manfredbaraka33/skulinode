@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API = 'http://127.0.0.1:8000/api/public/necta';
+import { NECTA_API as API } from '../../config/api';
 
 export default function SchoolProfile() {
   const { centerId } = useParams();

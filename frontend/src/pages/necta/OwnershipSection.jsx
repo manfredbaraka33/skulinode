@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { NECTA_API as API } from '../../config/api';
 
-const API = 'http://127.0.0.1:8000/api/public/necta';
 const LABELS = { GOVERNMENT: 'Shule za Serikali', PRIVATE: 'Shule Binafsi', UNKNOWN: 'Haijathibitishwa' };
 
 export default function OwnershipSection({ level, year }) {

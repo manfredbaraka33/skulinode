@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
-const API = 'http://127.0.0.1:8000/api/public/necta';
+import { NECTA_API as API } from '../../config/api';
 
 export default function RegionalChart({ level, year, onSelectRegion }) {
   const [regions, setRegions] = useState([]);
