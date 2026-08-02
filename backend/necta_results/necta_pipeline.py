@@ -50,7 +50,6 @@ def derive_center_type(center_id):
     return 'PRIVATE' if prefix == 'P' else 'SCHOOL'
 
 
-
 def clean_summary(df: pd.DataFrame) -> pd.DataFrame:
     """
     Cleans the raw summary CSV. Assumes `district` column already exists
@@ -70,16 +69,6 @@ def clean_summary(df: pd.DataFrame) -> pd.DataFrame:
     df['district'] = df['district'].fillna('').astype(str).str.strip().str.upper()
     df['district_known'] = df['district'] != ''
 
-    # Ownership type — placeholder until scraper captures it reliably.
-    # Column may not exist yet in older CSVs; default everything to UNKNOWN
-    # so downstream aggregation code works unchanged once real values arrive.
-    # if 'ownership_type' not in df.columns:
-    #     df['ownership_type'] = 'UNKNOWN'
-    # df['ownership_type'] = (
-    #     df['ownership_type'].fillna('UNKNOWN').astype(str).str.strip().str.upper()
-    # )
-    # df.loc[~df['ownership_type'].isin(['GOVERNMENT', 'PRIVATE']), 'ownership_type'] = 'UNKNOWN'
-
     # Directly read existing columns from the CSV instead of parsing
     df['grade_letter'] = df['grade_letter'].fillna('').astype(str).str.strip().str.upper() if 'grade_letter' in df.columns else ''
     df['grade_label']  = df['grade_label'].fillna('').astype(str).str.strip().str.upper() if 'grade_label' in df.columns else ''
@@ -90,9 +79,28 @@ def clean_summary(df: pd.DataFrame) -> pd.DataFrame:
         (df['center_gpa'].notna())
     )
 
+    # The separately-scraped 'TOTAL PASSED CANDIDATES' text field can mismatch
+    # the division breakdown due to regex/parsing inconsistencies. The division
+    # table is the more reliable structured source, so recompute total_passed/
+    # total_failed from it directly. Division 0 is NECTA's own "failed" bucket.
+    df['total_passed'] = (
+        df['div_1_total'] + df['div_2_total'] + df['div_3_total'] + df['div_4_total']
+    )
+    df['total_failed'] = df['div_0_total']
+
+    # graded_total = candidates who actually received a division. This can be
+    # LESS than sat_total, because sat_total also counts withheld/no-CA
+    # candidates who never appear in any division at all. Using sat_total as
+    # the pass_rate denominator silently understates pass rate for schools
+    # with zero real Div 0 failures. graded_total is the honest denominator.
+    df['graded_total'] = (
+        df['div_1_total'] + df['div_2_total'] + df['div_3_total'] +
+        df['div_4_total'] + df['div_0_total']
+    )
+
     df['pass_rate'] = np.where(
-        df['sat_total'] > 0,
-        (df['total_passed'] / df['sat_total'] * 100).round(2),
+        df['graded_total'] > 0,
+        (df['total_passed'] / df['graded_total'] * 100).round(2),
         np.nan
     )
 
@@ -114,11 +122,10 @@ def clean_summary(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     df['div1_rate'] = np.where(
-        df['sat_total'] > 0, (df['div_1_total'] / df['sat_total'] * 100).round(2), np.nan
+        df['graded_total'] > 0, (df['div_1_total'] / df['graded_total'] * 100).round(2), np.nan
     )
 
     return df
-
 
 
 
