@@ -151,20 +151,20 @@ function AssessmentFormModal({ item, onClose, onSuccess, onError }) {
     <Modal title={item ? 'Edit Assessment' : 'New Assessment'} onClose={onClose}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Assessment Name</label>
-          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          <label className="block  font-medium text-slate-400 mb-1">Assessment Name</label>
+          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g. Mid-term Test, Annual Exam"
             {...register('name', { required: 'Required' })} />
           <FieldError message={errors.name?.message} />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Academic Year</label>
-          <input type="number" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          <label className="block font-medium text-slate-400 mb-1">Academic Year</label>
+          <input type="number" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
             {...register('academic_year', { required: 'Required', valueAsNumber: true })} />
           <FieldError message={errors.academic_year?.message} />
         </div>
         <div className="flex gap-3 justify-end pt-1">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={isSubmitting}
             className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}
