@@ -104,51 +104,6 @@ class RankingsView(APIView):
         })
 
 
-class SchoolDetailView(APIView):
-    """GET /api/public/necta/school/<center_id>/?level=ACSEE&year=2026"""
-    permission_classes = []
-
-    def get(self, request, center_id):
-        level = request.query_params.get('level', 'ACSEE')
-        year  = request.query_params.get('year')
-        try:
-            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
-            center  = SchoolCenter.objects.get(exam_session=session, center_id=center_id.upper())
-        except (ExamSession.DoesNotExist, SchoolCenter.DoesNotExist):
-            return Response({'error': 'Not found.'}, status=404)
-
-        subjects = list(center.subjects.values(
-            'subject_name', 'registered', 'sat', 'subject_gpa', 'dropout_rate'
-        ).order_by('subject_gpa'))
-
-        subject_ranks = list(SubjectSchoolRanking.objects.filter(
-            exam_session=session, center=center
-        ).values('subject_name', 'national_subject_rank', 'regional_subject_rank', 'district_subject_rank'))
-        rank_map = {r['subject_name']: r for r in subject_ranks}
-        for s in subjects:
-            r = rank_map.get(s['subject_name'], {})
-            s['national_subject_rank'] = r.get('national_subject_rank')
-            s['regional_subject_rank'] = r.get('regional_subject_rank')
-            s['district_subject_rank'] = r.get('district_subject_rank')
-
-        return Response({
-            'center_id': center.center_id, 'center_name': center.center_name,
-            'region': center.region, 'district': center.district or None,
-            'gpa': center.center_gpa, 'grade_label': center.grade_label,
-            'national_rank': center.national_rank, 'regional_rank': center.regional_rank,
-            'district_rank': center.district_rank,
-            'sat_total': center.sat_total, 'pass_rate': center.pass_rate,
-            'divisions': {
-                'I': center.div_1_total, 'II': center.div_2_total,
-                'III': center.div_3_total, 'IV': center.div_4_total, '0': center.div_0_total,
-            },
-            'gender': {
-                'pass_rate_male': center.pass_rate_male, 'pass_rate_female': center.pass_rate_female,
-                'sat_male': center.sat_male, 'sat_female': center.sat_female,
-            },
-            'subjects': subjects,
-        })
-
 
 class RegionalComparisonView(APIView):
     """GET /api/public/necta/regions/?level=ACSEE&year=2026"""
@@ -377,11 +332,108 @@ class SchoolSearchView(APIView):
         } for c in matches]})
 
 
+
+from django.http import HttpResponse
+from .card_generator import (
+    generate_school_card, generate_region_card, generate_gem_card,
+    generate_gender_card, generate_subject_card, generate_compare_card,
+)
+
+
+def _necta_source_url(exam_level, year, center_id):
+    """Direct link to the official NECTA results page for this center."""
+    return f'https://matokeo.necta.go.tz/results/{year}/{exam_level.lower()}/results/{center_id.lower()}.htm'
+
+
+class SchoolDetailView(APIView):
+    """GET /api/necta/school/<center_id>/?level=ACSEE&year=2026 — every real CSV-backed field."""
+    permission_classes = []
+
+    def get(self, request, center_id):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+            center  = SchoolCenter.objects.get(exam_session=session, center_id=center_id.upper())
+        except (ExamSession.DoesNotExist, SchoolCenter.DoesNotExist):
+            return Response({'error': 'Not found.'}, status=404)
+
+        subjects = list(center.subjects.values(
+            'subject_name', 'registered', 'sat', 'subject_gpa', 'dropout_rate'
+        ).order_by('subject_gpa'))
+
+        subject_ranks = list(SubjectSchoolRanking.objects.filter(
+            exam_session=session, center=center
+        ).values('subject_name', 'national_subject_rank', 'regional_subject_rank', 'district_subject_rank'))
+        rank_map = {r['subject_name']: r for r in subject_ranks}
+        for s in subjects:
+            r = rank_map.get(s['subject_name'], {})
+            s['national_subject_rank'] = r.get('national_subject_rank')
+            s['regional_subject_rank'] = r.get('regional_subject_rank')
+            s['district_subject_rank'] = r.get('district_subject_rank')
+
+        graded_total = (center.div_1_total + center.div_2_total + center.div_3_total +
+                        center.div_4_total + center.div_0_total)
+
+        return Response({
+            'center_id': center.center_id, 'center_name': center.center_name,
+            'region': center.region, 'district': center.district or None,
+            'gpa': center.center_gpa,
+            'grade_letter': center.grade_letter, 'grade_label': center.grade_label,
+            'national_rank': center.national_rank, 'regional_rank': center.regional_rank,
+            'district_rank': center.district_rank,
+            'registered_total': center.registered_total,
+            'absent_total': center.absent_total,
+            'sat_total': center.sat_total,
+            'withheld_total': center.withheld_total,
+            'clean_total': center.clean_total,
+            'graded_total': graded_total,
+            'total_passed': center.total_passed,
+            'total_failed': center.total_failed,
+            'pass_rate': center.pass_rate,
+            'div1_rate': center.div1_rate,
+            'divisions': {
+                'I': center.div_1_total, 'II': center.div_2_total,
+                'III': center.div_3_total, 'IV': center.div_4_total, '0': center.div_0_total,
+            },
+            'divisions_by_gender': {
+                'male':   {'I': center.div_1_male,   'II': center.div_2_male,   'III': center.div_3_male,   'IV': center.div_4_male,   '0': center.div_0_male},
+                'female': {'I': center.div_1_female, 'II': center.div_2_female, 'III': center.div_3_female, 'IV': center.div_4_female, '0': center.div_0_female},
+            },
+            'gender': {
+                'pass_rate_male': center.pass_rate_male, 'pass_rate_female': center.pass_rate_female,
+                'sat_male': center.sat_male, 'sat_female': center.sat_female,
+                'pass_male': center.pass_male, 'pass_female': center.pass_female,
+            },
+            'subjects': subjects,
+            'necta_source_url': _necta_source_url(level, year, center.center_id),
+        })
+
+
+class SchoolTrendView(APIView):
+    """
+    GET /api/necta/trend/school/<center_id>/?level=ACSEE
+    All years of data for this center across published sessions of the given
+    level. Returns a single-point series gracefully when only one year exists.
+    """
+    permission_classes = []
+
+    def get(self, request, center_id):
+        level = request.query_params.get('level', 'ACSEE')
+        sessions = ExamSession.objects.filter(exam_level=level, is_published=True).order_by('year')
+        points = []
+        for s in sessions:
+            try:
+                c = SchoolCenter.objects.get(exam_session=s, center_id=center_id.upper())
+                points.append({'year': s.year, 'gpa': c.center_gpa,
+                               'national_rank': c.national_rank, 'pass_rate': c.pass_rate})
+            except SchoolCenter.DoesNotExist:
+                continue
+        return Response({'center_id': center_id.upper(), 'level': level, 'points': points})
+
+
 class SchoolCompareView(APIView):
-    """
-    GET /api/necta/compare/?level=ACSEE&year=2026&centers=S0220,S0214,P0101
-    Side-by-side data for the comparison tool.
-    """
+    """GET /api/necta/compare/?level=&year=&centers=id1,id2,id3"""
     permission_classes = []
 
     def get(self, request):
@@ -392,7 +444,6 @@ class SchoolCompareView(APIView):
 
         if not ids:
             return Response({'error': 'centers parameter is required.'}, status=400)
-
         try:
             session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
         except ExamSession.DoesNotExist:
@@ -404,7 +455,6 @@ class SchoolCompareView(APIView):
                 c = SchoolCenter.objects.get(exam_session=session, center_id=cid)
             except SchoolCenter.DoesNotExist:
                 continue
-            subjects = list(c.subjects.values('subject_name', 'subject_gpa', 'sat').order_by('subject_gpa'))
             results.append({
                 'center_id': c.center_id, 'center_name': c.center_name,
                 'region': c.region, 'district': c.district or None,
@@ -415,7 +465,159 @@ class SchoolCompareView(APIView):
                     'IV': c.div_4_total, '0': c.div_0_total,
                 },
                 'pass_rate_male': c.pass_rate_male, 'pass_rate_female': c.pass_rate_female,
-                'subjects': subjects,
             })
-
         return Response({'results': results})
+
+
+# ── Card endpoints ─────────────────────────────────────────────────────────
+
+class SchoolCardView(APIView):
+    permission_classes = []
+
+    def get(self, request, center_id):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+            center  = SchoolCenter.objects.get(exam_session=session, center_id=center_id.upper())
+        except (ExamSession.DoesNotExist, SchoolCenter.DoesNotExist):
+            return Response({'error': 'Not found.'}, status=404)
+        buf = generate_school_card(center, session)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = f'attachment; filename="{center.center_id}_matokeo.png"'
+        return resp
+
+
+class RegionCardView(APIView):
+    permission_classes = []
+
+    def get(self, request, region):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+            region_row = RegionalSummary.objects.get(exam_session=session, region=region.upper())
+        except (ExamSession.DoesNotExist, RegionalSummary.DoesNotExist):
+            return Response({'error': 'Not found.'}, status=404)
+
+        top = list(SchoolCenter.objects.filter(
+            exam_session=session, region=region.upper(), is_rankable=True
+        ).order_by('center_gpa').values('center_name', 'center_gpa')[:5])
+        top_schools = [{'center_name': s['center_name'], 'gpa': s['center_gpa']} for s in top]
+
+        row = {'region': region_row.region, 'national_rank': region_row.national_rank,
+               'school_count': region_row.school_count, 'weighted_gpa': region_row.weighted_gpa,
+               'pass_rate': region_row.pass_rate}
+        buf = generate_region_card(row, top_schools, level, year)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = f'attachment; filename="{region.upper()}_matokeo.png"'
+        return resp
+
+
+class GemCardView(APIView):
+    permission_classes = []
+
+    def get(self, request, center_id):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+        except ExamSession.DoesNotExist:
+            return Response({'error': 'Not found.'}, status=404)
+
+        gems = session.kpi_data.get('hidden_gems', [])
+        gem = next((g for g in gems if g['center_id'] == center_id.upper()), None)
+        if not gem:
+            return Response({'error': 'Gem not found.'}, status=404)
+
+        buf = generate_gem_card(gem, level, year)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = f'attachment; filename="{center_id.upper()}_kito.png"'
+        return resp
+
+
+class GenderCardView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+        except ExamSession.DoesNotExist:
+            return Response({'error': 'Not found.'}, status=404)
+
+        national = session.kpi_data.get('headlines', {}).get('national_gender')
+        by_region = session.kpi_data.get('gender_gap_regions', [])
+        if not national:
+            return Response({'error': 'No gender data available.'}, status=404)
+
+        buf = generate_gender_card(national, by_region, level, year)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = 'attachment; filename="kijinsia_matokeo.png"'
+        return resp
+
+
+class SubjectCardView(APIView):
+    permission_classes = []
+
+    def get(self, request, subject_name):
+        level  = request.query_params.get('level', 'ACSEE')
+        year   = request.query_params.get('year')
+        region = request.query_params.get('region')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+        except ExamSession.DoesNotExist:
+            return Response({'error': 'Not found.'}, status=404)
+
+        qs = SubjectSchoolRanking.objects.filter(exam_session=session, subject_name=subject_name.upper())
+        if region:
+            qs = qs.filter(region=region.upper()).order_by('regional_subject_rank')
+            scope_label = f'Mkoa wa {region}'
+        else:
+            qs = qs.order_by('national_subject_rank')
+            scope_label = 'Kitaifa'
+
+        rows = [{'rank': c.regional_subject_rank if region else c.national_subject_rank,
+                 'center_name': c.center.center_name if c.center else c.center_id,
+                 'subject_gpa': c.subject_gpa} for c in qs.select_related('center')[:8]]
+        if not rows:
+            return Response({'error': 'No data.'}, status=404)
+
+        buf = generate_subject_card(subject_name.upper(), rows, level, year, scope_label)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = f'attachment; filename="{subject_name}_matokeo.png"'
+        return resp
+
+
+class CompareCardView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        level   = request.query_params.get('level', 'ACSEE')
+        year    = request.query_params.get('year')
+        centers = request.query_params.get('centers', '')
+        ids = [c.strip().upper() for c in centers.split(',') if c.strip()][:4]
+
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+        except ExamSession.DoesNotExist:
+            return Response({'error': 'Not found.'}, status=404)
+
+        schools = []
+        for cid in ids:
+            try:
+                c = SchoolCenter.objects.get(exam_session=session, center_id=cid)
+                schools.append({'center_name': c.center_name, 'region': c.region,
+                                'gpa': c.center_gpa, 'national_rank': c.national_rank,
+                                'pass_rate': c.pass_rate})
+            except SchoolCenter.DoesNotExist:
+                continue
+
+        if len(schools) < 2:
+            return Response({'error': 'Need at least 2 valid schools.'}, status=400)
+
+        buf = generate_compare_card(schools, level, year)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = 'attachment; filename="ulinganisho.png"'
+        return resp

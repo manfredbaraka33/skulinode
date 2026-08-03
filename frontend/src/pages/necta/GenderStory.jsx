@@ -1,22 +1,40 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-
 import { NECTA_API as API } from '../../config/api';
+import { Download } from 'lucide-react';
 
 export default function GenderStory({ level, year }) {
   const [data, setData] = useState(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/gender/?level=${level}&year=${year}`).then(r => setData(r.data));
   }, [level, year]);
 
-  if (!data?.national) return null;
+  async function downloadCard() {
+    setDownloading(true);
+    try {
+      const r = await axios.get(`${API}/cards/gender/?level=${level}&year=${year}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'kijinsia_matokeo.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+    } finally { setDownloading(false); }
+  }
 
+  if (!data?.national) return null;
   const { pass_rate_male, pass_rate_female, leader, gap } = data.national;
 
   return (
     <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-6">
-      <h2 className="text-lg font-bold text-slate-800 mb-1">Kina Nani Wanaongoza?</h2>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-lg font-bold text-slate-800">Kina Nani Wanaongoza?</h2>
+        <button onClick={downloadCard} disabled={downloading}
+          className="p-2 rounded-lg bg-white/60 text-slate-600 hover:bg-white disabled:opacity-50">
+          <Download size={15}/>
+        </button>
+      </div>
       <p className="text-sm text-slate-500 mb-4">Wavulana au Wasichana — takwimu za kitaifa</p>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
@@ -36,9 +54,7 @@ export default function GenderStory({ level, year }) {
 
       {data.by_region?.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            Mikoa yenye Tofauti Kubwa Zaidi
-          </div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Mikoa yenye Tofauti Kubwa Zaidi</div>
           <div className="space-y-1.5">
             {data.by_region.slice(0, 5).map(r => (
               <div key={r.region} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 text-sm">

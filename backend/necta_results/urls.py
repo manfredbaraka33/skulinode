@@ -16,4 +16,11 @@ urlpatterns = [
     # path('ownership/',     api_views.OwnershipComparisonView.as_view()),
     path('search/',        api_views.SchoolSearchView.as_view()),
     path('compare/',       api_views.SchoolCompareView.as_view()),
+    path('trend/school/<str:center_id>/',   api_views.SchoolTrendView.as_view()),
+    path('cards/school/<str:center_id>/',   api_views.SchoolCardView.as_view()),
+    path('cards/region/<str:region>/',      api_views.RegionCardView.as_view()),
+    path('cards/gem/<str:center_id>/',      api_views.GemCardView.as_view()),
+    path('cards/gender/',                   api_views.GenderCardView.as_view()),
+    path('cards/subject/<str:subject_name>/', api_views.SubjectCardView.as_view()),
+    path('cards/compare/',                  api_views.CompareCardView.as_view()),
 ]

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { School, User, CheckCircle, AlertCircle, Loader2, ChevronRight, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import apiClient from '../api/axios';
+import Logo from '../components/Logo';
 
 const TANZANIAN_REGIONS = [
   'Arusha', 'Dar es Salaam', 'Dodoma', 'Geita', 'Iringa', 'Kagera',
@@ -88,15 +89,16 @@ export default function RegisterSchool() {
 
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
 
         {/* Header */}
         <div className="bg-linear-to-r from-blue-600 to-indigo-600 px-8 py-7">
           <div className="flex items-center gap-3 mb-1">
-            <div className="bg-white/20 rounded-lg p-2">
+            {/* <div className="bg-white/20 rounded-lg p-2">
               <School size={22} className="text-white" />
-            </div>
+            </div> */}
+            <Logo />
             <h1 className="text-white text-xl font-bold tracking-tight">SkuliNode</h1>
           </div>
           <p className="text-blue-100 text-sm">Register your school and create the administrator account</p>
@@ -332,8 +334,11 @@ export default function RegisterSchool() {
                 {isSubmitting ? 'Registering…' : 'Register School'}
               </button>
             )}
+            <Link to='/'><button className='bg-gray-600 rounded-lg p-2 text-gray-50'>Home</button></Link>
           </div>
+          
         </form>
+        
       </div>
     </div>
   );

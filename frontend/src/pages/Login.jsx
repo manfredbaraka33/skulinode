@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { School, Loader2, AlertCircle, LogIn, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import Logo from '../components/Logo';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -49,9 +50,10 @@ export default function Login() {
         {/* Header */}
         <div className="bg-linear-to-r from-blue-600 to-indigo-600 px-8 py-7">
           <div className="flex items-center gap-3 mb-1">
-            <div className="bg-white/20 rounded-lg p-2">
+            {/* <div className="bg-white/20 rounded-lg p-2">
               <School size={22} className="text-white" />
-            </div>
+            </div> */}
+            <Logo />
             <h1 className="text-white text-xl font-bold tracking-tight">SkuliNode</h1>
           </div>
           <p className="text-blue-100 text-sm">Sign in to your school dashboard</p>
@@ -125,6 +127,8 @@ export default function Login() {
             <Link to="/register-school" className="text-blue-600 hover:underline font-medium">
               Register here
             </Link>
+            <br />
+             <Link to='/'><button className='bg-gray-600 rounded-lg p-2 text-gray-50 mt-4'>Home</button></Link>
           </p>
         </form>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-
 import { NECTA_API as API } from '../../config/api';
+import { Download } from 'lucide-react';
 
 const SUBJECTS = [
   'GENERAL STUDIES', 'HISTORY', 'GEOGRAPHY', 'ENGLISH LANGUAGE', 'KISWAHILI',
@@ -13,20 +13,39 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 export default function SubjectLeaderboard({ level, year }) {
   const [subject, setSubject] = useState('BIOLOGY');
   const [rows, setRows] = useState([]);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/subject-leaderboard/?level=${level}&year=${year}&subject=${subject}&page_size=10`)
       .then(r => setRows(r.data.results));
   }, [level, year, subject]);
 
+  async function downloadCard() {
+    setDownloading(true);
+    try {
+      const r = await axios.get(`${API}/cards/subject/${subject}/?level=${level}&year=${year}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement('a');
+      a.href = url; a.download = `${subject}_matokeo.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+    } finally { setDownloading(false); }
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 className="text-lg font-bold text-slate-800">Shule Bora Zaidi Kwa Somo</h2>
-        <select value={subject} onChange={e => setSubject(e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5">
-          {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <select value={subject} onChange={e => setSubject(e.target.value)}
+            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5">
+            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <button onClick={downloadCard} disabled={downloading || rows.length === 0}
+            className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50">
+            <Download size={15}/>
+          </button>
+        </div>
       </div>
       <div className="space-y-2">
         {rows.map((r, i) => (

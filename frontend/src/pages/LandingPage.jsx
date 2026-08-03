@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { NECTA_API as API } from '../config/api';
+import Logo from '../components/Logo';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -55,9 +56,7 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-30 bg-[var(--paper)]/90 backdrop-blur border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--navy)] flex items-center justify-center">
-              <span className="text-[var(--gold)] font-display font-bold text-sm">S</span>
-            </div>
+            <Logo />
             <span className="font-display font-semibold text-lg text-[var(--navy)]">SkuliNode</span>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
@@ -210,9 +209,10 @@ export default function LandingPage() {
       <footer className="bg-[var(--navy-deep)] text-blue-100">
         <div className="max-w-6xl mx-auto px-4 py-10 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
+            {/* <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
               <span className="text-[var(--gold)] font-display font-bold text-xs">S</span>
-            </div>
+            </div> */}
+            <Logo />
             <span className="font-display font-semibold text-white">SkuliNode</span>
           </div>
           <div className="flex gap-6 text-sm">

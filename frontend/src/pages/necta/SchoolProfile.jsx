@@ -1,28 +1,48 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-
 import { NECTA_API as API } from '../../config/api';
+import { Download, ExternalLink, TrendingUp, Users2 } from 'lucide-react';
+import CompareModal from './CompareModal';
 
 export default function SchoolProfile() {
   const { centerId } = useParams();
   const [school, setSchool] = useState(null);
+  const [trend, setTrend] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/school/${centerId}/?level=ACSEE&year=2026`).then(r => setSchool(r.data));
+    axios.get(`${API}/trend/school/${centerId}/?level=ACSEE`).then(r => setTrend(r.data));
   }, [centerId]);
+
+  async function downloadCard() {
+    setDownloading(true);
+    try {
+      const r = await axios.get(`${API}/cards/school/${centerId}/?level=ACSEE&year=2026`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement('a');
+      a.href = url; a.download = `${centerId}_matokeo.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+    } finally { setDownloading(false); }
+  }
 
   if (!school) return <div className="text-center py-12 text-slate-400">Inapakia...</div>;
 
+  const D = school.divisions;
+  const gradedTotal = D.I + D.II + D.III + D.IV + D['0'];
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div className="bg-gradient-to-br from-blue-700 to-blue-500 rounded-2xl p-6 text-white text-center">
-        <h1 className="text-xl font-bold">{school.center_name}</h1>
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="bg-gradient-to-br from-[#1e3a5f] to-[#142a44] rounded-2xl p-6 text-white text-center">
+        <h1 style={{ fontFamily: "'Fraunces', serif" }} className="text-xl font-semibold">{school.center_name}</h1>
         <p className="text-blue-100 text-sm mt-1">{school.region}{school.district ? ` · ${school.district}` : ''}</p>
 
-        <div className="flex justify-center gap-4 mt-4">
+        <div className="flex justify-center flex-wrap gap-3 mt-4">
           <div className="bg-white/15 rounded-xl px-4 py-2">
-            <div className="text-2xl font-bold">🥇 #{school.national_rank}</div>
+            <div className="text-2xl font-bold">{school.national_rank === 1 ? '🥇' : `#${school.national_rank}`}</div>
             <div className="text-xs opacity-80">Taifa</div>
           </div>
           {school.regional_rank && (
@@ -41,27 +61,50 @@ export default function SchoolProfile() {
 
         <div className="flex justify-center gap-6 mt-4">
           <div>
-            <div className="text-2xl font-bold">{school.gpa}</div>
-            <div className="text-xs opacity-80">GPA</div>
+            <div className="text-2xl font-bold font-mono">{school.gpa}</div>
+            <div className="text-xs opacity-80">GPA {school.grade_label ? `· ${school.grade_label}` : ''}</div>
           </div>
           <div>
-            <div className="text-2xl font-bold">{school.pass_rate}%</div>
+            <div className="text-2xl font-bold font-mono">{school.pass_rate}%</div>
             <div className="text-xs opacity-80">Kufaulu</div>
           </div>
+        </div>
+
+        <div className="flex justify-center gap-2 mt-5">
+          <button onClick={downloadCard} disabled={downloading}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#c4a014] text-[#142a44] rounded-lg text-sm font-bold disabled:opacity-50">
+            <Download size={15}/> {downloading ? 'Inapakua...' : 'Pakua Kadi'}
+          </button>
+          <button onClick={() => setShowCompare(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white/15 text-white rounded-lg text-sm font-semibold">
+            <Users2 size={15}/> Linganisha
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3">Takwimu za Watahiniwa</h3>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <Stat label="Waliosajili" value={school.registered_total} />
+          <Stat label="Waliofanya Mtihani" value={school.sat_total} />
+          <Stat label="Wasiohudhuria" value={school.absent_total} />
+          <Stat label="Waliozuiliwa" value={school.withheld_total} />
+          <Stat label="Waliopimwa Safi" value={school.clean_total} />
+          <Stat label="Waliopata Daraja" value={school.graded_total} />
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
         <h3 className="text-sm font-semibold text-slate-700 mb-3">Mgawanyo wa Madaraja</h3>
-        <div className="grid grid-cols-5 gap-2 text-center">
-          {['I', 'II', 'III', 'IV', '0'].map((div) => (
+        <div className="grid grid-cols-5 gap-2 text-center mb-2">
+          {['I','II','III','IV','0'].map(div => (
             <div key={div} className="bg-slate-50 rounded-lg py-2">
-                <div className="font-bold text-slate-800">{school.divisions?.[div] ?? 0}</div>
-                <div className="text-xs text-slate-400">Div {div}</div>
+              <div className="font-bold text-slate-800">{D[div]}</div>
+              <div className="text-xs text-slate-400">Div {div}</div>
             </div>
-            ))}
-        
+          ))}
         </div>
+        <p className="text-xs text-slate-400">Div I ni {gradedTotal ? Math.round(D.I / gradedTotal * 100) : 0}% ya waliopimwa</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
@@ -80,21 +123,67 @@ export default function SchoolProfile() {
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
         <h3 className="text-sm font-semibold text-slate-700 mb-3">Ufaulu wa Masomo</h3>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {school.subjects.map(s => (
-            <div key={s.subject_name} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0">
-              <span className="text-slate-700">{s.subject_name}</span>
-              <span className="font-mono font-semibold text-blue-700">{s.subject_gpa}</span>
+            <div key={s.subject_name} className="flex items-center justify-between text-sm py-2 border-b border-slate-50 last:border-0">
+              <div>
+                <div className="text-slate-700 font-medium">{s.subject_name}</div>
+                <div className="text-xs text-slate-400">
+                  Waliosajili {s.registered} · Waliofanya {s.sat}
+                  {s.dropout_rate ? ` · Kutokuhudhuria ${s.dropout_rate}%` : ''}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono font-semibold text-blue-700">{s.subject_gpa}</div>
+                {s.national_subject_rank && (
+                  <div className="text-xs text-amber-600">#{s.national_subject_rank} kitaifa</div>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      <button
-        onClick={() => window.print()}
-        className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm">
-        Pakua / Chapisha Matokeo
-      </button>
+      <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <TrendingUp size={16}/> Mwenendo wa Miaka
+        </h3>
+        {trend?.points?.length > 1 ? (
+          <div className="space-y-2">
+            {trend.points.map(p => (
+              <div key={p.year} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0">
+                <span className="text-slate-600">{p.year}</span>
+                <span className="font-mono font-semibold text-[#1e3a5f]">GPA {p.gpa}</span>
+                <span className="text-xs text-slate-400">#{p.national_rank} taifa</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">
+            Takwimu za mwaka mmoja tu zinapatikana kwa sasa. Mwenendo utaonekana miaka ijayo inapoongezwa.
+          </p>
+        )}
+      </div>
+
+      {school.necta_source_url && (
+        <a href={school.necta_source_url} target="_blank" rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-300 rounded-xl text-sm font-semibold text-slate-500 hover:border-[#1e3a5f] hover:text-[#1e3a5f] transition">
+          <ExternalLink size={15}/> Ona Ukurasa Rasmi wa NECTA
+        </a>
+      )}
+
+      {showCompare && (
+        <CompareModal initialCenterId={centerId} level="ACSEE" year="2026" onClose={() => setShowCompare(false)} />
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value }) {
+  return (
+    <div>
+      <div className="font-bold text-slate-800">{value ?? '—'}</div>
+      <div className="text-xs text-slate-400 mt-0.5">{label}</div>
     </div>
   );
 }
