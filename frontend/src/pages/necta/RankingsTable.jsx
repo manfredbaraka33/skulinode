@@ -87,16 +87,16 @@ export default function RankingsTable({ level, year, region, district, onRegionC
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-120">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="text-left px-4 py-2 text-xs text-slate-500">Nafasi</th>
-              <th className="text-left px-4 py-2 text-xs text-slate-500">Shule</th>
-              <th className="text-left px-4 py-2 text-xs text-slate-500">Mkoa</th>
-              <th className="text-left px-4 py-2 text-xs text-slate-500">Wilaya</th>
-              <th className="text-center px-4 py-2 text-xs text-slate-500">GPA</th>
-              <th className="text-center px-4 py-2 text-xs text-slate-500">Kufaulu</th>
+              <th className="text-left px-4 py-2 text-xs text-slate-500 sticky top-0">Nafasi</th>
+              <th className="text-left px-4 py-2 text-xs text-slate-500 sticky top-0">Shule</th>
+              <th className="text-left px-4 py-2 text-xs text-slate-500 sticky top-0">Mkoa</th>
+              <th className="text-left px-4 py-2 text-xs text-slate-500 sticky top-0">Wilaya</th>
+              <th className="text-center px-4 py-2 text-xs text-slate-500 sticky top-0">GPA</th>
+              <th className="text-center px-4 py-2 text-xs text-slate-500 sticky top-0">Kufaulu</th>
             </tr>
           </thead>
           <tbody>
