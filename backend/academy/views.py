@@ -865,7 +865,7 @@ class SendSMSView(APIView):
                 division = summary['division'] or '-'
                 points = summary['points']
                 pts_str = f" ya {int(points)}" if points is not None else ""
-                detail = f"{nafasi}Wastani {avg_display}, Division {division}{pts_str}"
+                detail = f"{nafasi}Wastani {avg_display}, {division}{pts_str}"
 
             message = (
                 f"Matokeo ya {student.first_name} {student.last_name}"
