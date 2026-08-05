@@ -29,6 +29,7 @@ import NectaDashboard from './pages/necta/NectaDashboard';
 import SchoolProfile from './pages/necta/SchoolProfile';
 import LandingPage from './pages/LandingPage';
 import ComingSoonPage from './pages/ComingSoonPage';
+import TCUCalculator from './pages/tcu/TCUCalculator';
 
 
 function App() {
@@ -48,13 +49,7 @@ function App() {
           />
         } />
 
-        <Route path="/tcu" element={
-          <ComingSoonPage
-            icon="🎓"
-            title="Kikokotoo cha TCU"
-            description="Hesabu pointi zako za TCU na uone programu na vyuo unavyostahili — kutoka mwongozo rasmi wa TCU. Inakuja hivi karibuni."
-          />
-        } />
+          <Route path="/tcu" element={<TCUCalculator />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register-school" element={<RegisterSchool />} />
           <Route path="/pending-verification" element={<PendingVerification />} />

@@ -14,6 +14,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('api.urls')),
     path('api/public/necta/', include('necta_results.urls')),
+    path('api/tcu/', include('tcu_calculator.urls')),
 
 ]
 

@@ -33,7 +33,8 @@ INSTALLED_APPS = [
     'core',
     'api',
     'academy',
-    'necta_results'
+    'necta_results',
+    'tcu_calculator',
 ]
 
 MIDDLEWARE = [

@@ -151,7 +151,7 @@ export default function LandingPage() {
           <PathCard
             icon="🎓" title="Kikokotoo cha TCU"
             desc="Hesabu pointi zako na uone unastahili programu zipi."
-            comingSoon
+            action={() => navigate('/tcu')} cta="Hesabu Sasa →"
           />
         </div>
       </section>
