@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { NECTA_API as API } from '../config/api';
 import Logo from '../components/Logo';
 
+ import { Helmet } from 'react-helmet-async';
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [headline, setHeadline] = useState(null);
@@ -14,6 +16,14 @@ export default function LandingPage() {
       .then(setHeadline)
       .catch(() => setHeadline(null));
   }, []);
+
+ 
+
+// inside the component, near the top of the returned JSX:
+<Helmet>
+  <title>SkuliNode — Matokeo ya NECTA, Maswali ya Zamani na TCU Tanzania</title>
+  <meta name="description" content="Angalia matokeo ya NECTA kwa shule, mkoa na wilaya. Hesabu pointi zako za TCU. Pata maswali ya zamani ya mitihani. Bure kwa kila Mtanzania." />
+</Helmet>
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", background: 'var(--paper)' }}

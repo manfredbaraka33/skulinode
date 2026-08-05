@@ -4,6 +4,7 @@ import axios from 'axios';
 import { NECTA_API as API } from '../../config/api';
 import { Download, ExternalLink, TrendingUp, Users2 } from 'lucide-react';
 import CompareModal from './CompareModal';
+import { Helmet } from 'react-helmet-async';
 
 export default function SchoolProfile() {
   const { centerId } = useParams();
@@ -33,6 +34,11 @@ export default function SchoolProfile() {
 
   const D = school.divisions;
   const gradedTotal = D.I + D.II + D.III + D.IV + D['0'];
+
+  <Helmet>
+  <title>{school.center_name} — Matokeo ya NECTA {school.region} | SkuliNode</title>
+  <meta name="description" content={`${school.center_name}, ${school.region}. GPA: ${school.gpa}. Nafasi ya ${school.national_rank} Kitaifa. Kufaulu: ${school.pass_rate}%.`} />
+</Helmet>
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>

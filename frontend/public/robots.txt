@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Allow: /necta
+Allow: /tcu
+Allow: /past-papers
+
+Disallow: /login
+Disallow: /admin
+Disallow: /*/dashboard
+Disallow: /parent
+
+Sitemap: https://skulinode.co.tz/sitemap.xml

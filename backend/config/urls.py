@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.static import serve
-
+from necta_results.sitemap_views import SitemapView
 
 # Customize the Django Admin text
 admin.site.site_header = "SkuliNode Admin"       # Changes the main title at the top of the page
@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/v1/', include('api.urls')),
     path('api/public/necta/', include('necta_results.urls')),
     path('api/tcu/', include('tcu_calculator.urls')),
+    path('sitemap.xml', SitemapView.as_view()),
 
 ]
 

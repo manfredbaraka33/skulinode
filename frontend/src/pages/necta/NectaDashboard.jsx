@@ -10,6 +10,7 @@ import HiddenGems from './HiddenGems';
 import RankingsTable from './RankingsTable';
 import CompareModal from './CompareModal';
 import { Users2 } from 'lucide-react';
+ import { Helmet } from 'react-helmet-async';
 
 export default function NectaDashboard() {
   const [level] = useState('ACSEE');
@@ -30,6 +31,11 @@ export default function NectaDashboard() {
     setRegion(r); setDistrict('');
     setTimeout(() => document.getElementById('rankings-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
+
+  <Helmet>
+  <title>Matokeo ya NECTA {year} — Nafasi za Shule Tanzania | SkuliNode</title>
+  <meta name="description" content={`Nafasi za shule za ${level} ${year} kitaifa, kimkoa na kiwilaya. Uchambuzi wa kijinsia, mwenendo wa miaka, na shule bora kwa kila somo.`} />
+</Helmet>
 
   return (
     <div className="bg-slate-50 min-h-screen">

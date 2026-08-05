@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+ import { Helmet } from 'react-helmet-async';
 
 const API = (() => {
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -71,6 +72,11 @@ export default function TCUCalculator() {
       setLoading(false);
     }
   }
+
+  <Helmet>
+  <title>Kikokotoo cha TCU — Hesabu Pointi Zako | SkuliNode</title>
+  <meta name="description" content="Hesabu pointi zako za TCU kutoka Mwongozo Rasmi wa 2026/2027 na uone unastahili programu zipi na chuo gani." />
+</Helmet>
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }} className="min-h-screen bg-[#faf8f3]">
@@ -147,70 +153,6 @@ export default function TCUCalculator() {
   );
 }
 
-// function Results({ result }) {
-//   const [tab, setTab] = useState('eligible');
-
-//   return (
-//     <div>
-//       <div className="grid grid-cols-2 gap-3 mb-5">
-//         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-//           <div className="text-2xl font-bold text-green-700">{result.eligible_count}</div>
-//           <div className="text-xs text-slate-600 mt-1">Programu Unazostahili</div>
-//         </div>
-//         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-//           <div className="text-2xl font-bold text-amber-700">{result.close_miss_count}</div>
-//           <div className="text-xs text-slate-600 mt-1">Karibu Kufikia (chini kidogo)</div>
-//         </div>
-//       </div>
-
-//       <div className="flex gap-2 mb-4">
-//         <button onClick={() => setTab('eligible')}
-//           className={`flex-1 py-2 rounded-lg text-sm font-semibold ${tab === 'eligible' ? 'bg-[#1e3a5f] text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
-//           Unazostahili ({result.eligible_count})
-//         </button>
-//         <button onClick={() => setTab('close')}
-//           className={`flex-1 py-2 rounded-lg text-sm font-semibold ${tab === 'close' ? 'bg-[#1e3a5f] text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
-//           Karibu ({result.close_miss_count})
-//         </button>
-//       </div>
-
-//       <div className="space-y-3">
-//         {(tab === 'eligible' ? result.eligible : result.close_miss).map(p => (
-//           <div key={p.programme_id} className="bg-white rounded-xl border border-slate-200 p-4">
-//             <div className="flex items-start justify-between gap-3">
-//               <div>
-//                 <div className="font-semibold text-slate-800 text-sm">{p.programme_name}</div>
-//                 <div className="text-xs text-slate-500 mt-0.5">
-//                   {p.institution_name}{p.institution_location ? `, ${p.institution_location}` : ''}
-//                 </div>
-//               </div>
-//               <div className="text-right shrink-0">
-//                 <div className="font-mono font-bold text-[#1e3a5f]">
-//                   {p.achieved_points} <span className="text-slate-400 text-xs">/ {p.min_points_total}</span>
-//                 </div>
-//                 {tab === 'eligible' ? (
-//                   <div className="text-xs text-green-600">+{p.margin} juu ya kiwango</div>
-//                 ) : (
-//                   <div className="text-xs text-amber-600">Pungufu ya {p.points_gap}</div>
-//                 )}
-//               </div>
-//             </div>
-//             {p.capacity && (
-//               <div className="text-xs text-slate-400 mt-2">
-//                 Nafasi: {p.capacity} · Muda: miaka {p.duration_years}
-//               </div>
-//             )}
-//           </div>
-//         ))}
-//         {(tab === 'eligible' ? result.eligible : result.close_miss).length === 0 && (
-//           <p className="text-center text-slate-400 text-sm py-8">
-//             {tab === 'eligible' ? 'Hakuna programu ulizostahili kwa masomo uliyoingiza.' : 'Hakuna programu za karibu kupatikana.'}
-//           </p>
-//         )}
-//       </div>
-//     </div>
-//   );
-// }
 
 
 function Results({ result }) {
