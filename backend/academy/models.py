@@ -332,6 +332,49 @@ class GradeConfig(TenantModel):
         return f"{self.grade_label} ({self.min_score}–{self.max_score}) [{self.school}]"
 
 
+# class SMSLog(TenantModel):
+#     """Tracks SMS messages sent to parents."""
+
+#     STATUS_CHOICES = [
+#         ('queued', 'Queued'),
+#         ('sent', 'Sent'),
+#         ('failed', 'Failed'),
+#         ('dry_run', 'Dry Run'),
+#     ]
+
+#     # school overridden to allow logging without a tenant context
+#     school = models.ForeignKey(
+#         'core.School',
+#         on_delete=models.CASCADE,
+#         related_name='smslog_records',
+#         verbose_name='School',
+#         null=True,
+#         blank=True,
+#     )
+#     student = models.ForeignKey(
+#         Student, on_delete=models.CASCADE, related_name='sms_logs',
+#         null=True, blank=True,
+#     )
+#     assessment = models.ForeignKey(
+#         Assessment, on_delete=models.SET_NULL, null=True, blank=True
+#     )
+#     parent_phone = models.CharField(max_length=20)
+#     message = models.TextField()
+#     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='queued')
+#     message_id = models.CharField(max_length=100, null=True, blank=True)
+#     error = models.TextField(null=True, blank=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+
+#     class Meta:
+#         ordering = ['-created_at']
+#         verbose_name = 'SMS Log'
+#         verbose_name_plural = 'SMS Logs'
+
+#     def __str__(self):
+#         return f"SMS to {self.parent_phone} [{self.status}]"
+
+
+
 class SMSLog(TenantModel):
     """Tracks SMS messages sent to parents."""
 
@@ -352,11 +395,17 @@ class SMSLog(TenantModel):
         blank=True,
     )
     student = models.ForeignKey(
-        Student, on_delete=models.CASCADE, related_name='sms_logs',
-        null=True, blank=True,
+        'academy.Student',
+        on_delete=models.CASCADE,
+        related_name='sms_logs',
+        null=True,
+        blank=True,
     )
     assessment = models.ForeignKey(
-        Assessment, on_delete=models.SET_NULL, null=True, blank=True
+        'academy.Assessment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     parent_phone = models.CharField(max_length=20)
     message = models.TextField()
@@ -372,7 +421,9 @@ class SMSLog(TenantModel):
 
     def __str__(self):
         return f"SMS to {self.parent_phone} [{self.status}]"
-    
+
+
+
 
 # ── Comment System ────────────────────────────────────────────────────────────
 

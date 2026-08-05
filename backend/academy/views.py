@@ -1,6 +1,12 @@
 import re
 from decimal import Decimal
 
+import concurrent.futures
+from collections import defaultdict
+from django.conf import settings
+from django.db import close_old_connections
+from academy.sms import send_sms
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
@@ -735,6 +741,158 @@ class PublishResultsView(APIView):
 
 # ── Send SMS ──────────────────────────────────────────────────────────────────
 
+# class SendSMSView(APIView):
+#     """
+#     POST /api/v1/academy/send-sms/
+#     Send result-notification SMS to parents of selected students.
+#     Body: {student_ids: [...], assessment_id: <int>}
+#     Returns: {sent: int, failed: int, dry_run: bool}
+#     """
+#     permission_classes = [IsAuthenticated, IsSchoolPaid]
+
+#     def post(self, request):
+#         from collections import defaultdict
+#         from academy.sms import send_sms
+#         from django.conf import settings
+
+#         school = school_of(request)
+#         student_ids = request.data.get('student_ids', [])
+#         assessment_id = request.data.get('assessment_id')
+
+#         if not student_ids:
+#             return Response({'error': 'No students selected.'}, status=400)
+#         if not assessment_id:
+#             return Response({'error': 'assessment_id is required.'}, status=400)
+
+#         try:
+#             assessment = Assessment.objects.get(id=assessment_id, school=school)
+#         except Assessment.DoesNotExist:
+#             return Response({'error': 'Assessment not found.'}, status=404)
+
+#         school_type = school.school_type
+
+#         # Grade configs (fall back to NECTA defaults)
+#         grade_configs = list(
+#             GradeConfig.objects.filter(school=school).order_by('-min_score')
+#             .values('grade_label', 'min_score', 'max_score', 'points', 'remarks')
+#         ) or NECTA_DEFAULTS.get(school_type, NECTA_DEFAULTS['ORDINARY'])
+
+#         # Selected students
+#         selected_students = list(Student.objects.filter(school=school, id__in=student_ids))
+#         stream_ids = list({s.stream_id for s in selected_students if s.stream_id})
+
+#         # ALL students in those streams — needed for accurate rank computation
+#         all_stream_students = list(
+#             Student.objects.filter(school=school, stream_id__in=stream_ids)
+#         )
+
+#         # Subject assignments per stream
+#         stream_subjects = {}
+#         for sa in SubjectAssignment.objects.filter(
+#             school=school, stream_id__in=stream_ids,
+#         ).select_related('subject'):
+#             stream_subjects.setdefault(sa.stream_id, []).append(sa.subject)
+
+#         # Marks and exclusions for all stream students (single round-trip each)
+#         marks_map = {}
+#         for m in Mark.objects.filter(
+#             school=school, assessment=assessment, student__in=all_stream_students
+#         ):
+#             marks_map[(m.student_id, m.subject_id)] = m
+
+#         exclusions = set(
+#             StudentSubjectExclusion.objects.filter(
+#                 school=school, student__in=all_stream_students
+#             ).values_list('student_id', 'subject_id')
+#         )
+
+#         def _build_summary(student):
+#             subjects = stream_subjects.get(student.stream_id, [])
+#             subject_results = [
+#                 {
+#                     'score': float(marks_map[(student.id, subj.id)].score)
+#                         if marks_map.get((student.id, subj.id)) and
+#                            marks_map[(student.id, subj.id)].score is not None
+#                         else None,
+#                     'excluded': (student.id, subj.id) in exclusions,
+#                     'counts_in_division': subj.counts_in_division,
+#                 }
+#                 for subj in subjects
+#             ]
+#             return compute_student_summary(school_type, subject_results, grade_configs)
+
+#         # Compute summaries and rank within each stream
+#         summary_cache = {}
+#         rank_map = {}  # {student_id: (rank, stream_total)}
+
+#         by_stream = defaultdict(list)
+#         for s in all_stream_students:
+#             by_stream[s.stream_id].append(s)
+
+#         for sid, stream_students in by_stream.items():
+#             pairs = [(s, _build_summary(s)) for s in stream_students]
+#             for s, summ in pairs:
+#                 summary_cache[s.id] = summ
+
+#             total = len(stream_students)
+#             if school_type == 'PRIMARY':
+#                 ranked = sorted(
+#                     [(s, summ) for s, summ in pairs if summ['total_score'] is not None],
+#                     key=lambda x: -x[1]['total_score'],
+#                 )
+#             else:
+#                 ranked = sorted(
+#                     [(s, summ) for s, summ in pairs if summ['average'] is not None],
+#                     key=lambda x: (-(x[1]['average'] or 0), (x[1]['points'] or 999)),
+#                 )
+#             for pos, (s, _) in enumerate(ranked, start=1):
+#                 rank_map[s.id] = (pos, total)
+
+#         # Send SMS to each selected student who has a parent phone
+#         sent = 0
+#         failed = 0
+
+#         for student in selected_students:
+#             if not student.parent_phone:
+#                 continue
+
+#             summary = summary_cache.get(student.id) or _build_summary(student)
+#             rank_info = rank_map.get(student.id)
+
+#             average = summary['average'] if summary['average'] is not None else '-'
+#             grade = summary['grade'] or '-'
+#             avg_display = f"{average}({grade})"
+
+#             nafasi = f"Nafasi {rank_info[0]}/{rank_info[1]}, " if rank_info else ""
+
+#             if school_type == 'PRIMARY':
+#                 detail = f"{nafasi}Wastani {avg_display}"
+#             else:
+#                 division = summary['division'] or '-'
+#                 points = summary['points']
+#                 pts_str = f" ya {int(points)}" if points is not None else ""
+#                 detail = f"{nafasi}Wastani {avg_display},{division}{pts_str}"
+
+#             message = (
+#                 f"Matokeo ya {student.first_name} {student.last_name}"
+#                 f" - {school.name}.\n"
+#                 f"{assessment.name}: {detail}. -SkuliNode"
+#             )
+
+#             result = send_sms(student.parent_phone, message, school=school)
+#             if result['success']:
+#                 sent += 1
+#             else:
+#                 failed += 1
+
+#         return Response({
+#             'sent': sent,
+#             'failed': failed,
+#             'dry_run': settings.SMS_DRY_RUN,
+#         })
+
+
+
 class SendSMSView(APIView):
     """
     POST /api/v1/academy/send-sms/
@@ -745,6 +903,8 @@ class SendSMSView(APIView):
     permission_classes = [IsAuthenticated, IsSchoolPaid]
 
     def post(self, request):
+        import concurrent.futures
+        from django.db import close_old_connections
         from collections import defaultdict
         from academy.sms import send_sms
         from django.conf import settings
@@ -842,10 +1002,8 @@ class SendSMSView(APIView):
             for pos, (s, _) in enumerate(ranked, start=1):
                 rank_map[s.id] = (pos, total)
 
-        # Send SMS to each selected student who has a parent phone
-        sent = 0
-        failed = 0
-
+        # Build list of message tasks
+        tasks = []
         for student in selected_students:
             if not student.parent_phone:
                 continue
@@ -865,7 +1023,7 @@ class SendSMSView(APIView):
                 division = summary['division'] or '-'
                 points = summary['points']
                 pts_str = f" ya {int(points)}" if points is not None else ""
-                detail = f"{nafasi}Wastani {avg_display}, {division}{pts_str}"
+                detail = f"{nafasi}Wastani {avg_display},{division}{pts_str}"
 
             message = (
                 f"Matokeo ya {student.first_name} {student.last_name}"
@@ -873,17 +1031,46 @@ class SendSMSView(APIView):
                 f"{assessment.name}: {detail}. -SkuliNode"
             )
 
-            result = send_sms(student.parent_phone, message, school=school)
-            if result['success']:
-                sent += 1
-            else:
-                failed += 1
+            tasks.append({
+                'phone': student.parent_phone,
+                'message': message,
+                'school': school
+            })
+
+        # Process tasks concurrently
+        sent = 0
+        failed = 0
+
+        def _dispatch_sms(task):
+            close_old_connections()
+            try:
+                # Using your exact original function signature
+                return send_sms(task['phone'], task['message'], school=task['school'])
+            except Exception:
+                return {'success': False}
+            finally:
+                close_old_connections()
+
+        if tasks:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(_dispatch_sms, t) for t in tasks]
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        result = future.result()
+                        if result and result.get('success'):
+                            sent += 1
+                        else:
+                            failed += 1
+                    except Exception:
+                        failed += 1
 
         return Response({
             'sent': sent,
             'failed': failed,
             'dry_run': settings.SMS_DRY_RUN,
         })
+
+
 
 
 # ── Classes (ClassLevel + Stream combo) ───────────────────────────────────────
