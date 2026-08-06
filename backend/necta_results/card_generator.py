@@ -694,3 +694,108 @@ def generate_compare_card(schools, level, year):
 
 
 
+def generate_head_to_head_card(school_a, school_b, session, best_subject_a=None, best_subject_b=None):
+    """
+    Football-style head-to-head card for exactly two schools. Center column
+    shows the stat label; left/right sides show each school's value with a
+    proportional bar from the center divider — the side with the better
+    value (per that stat's direction) is drawn brighter, the other muted.
+    """
+    def _graded_total(c):
+        return c.div_1_total + c.div_2_total + c.div_3_total + c.div_4_total + c.div_0_total
+
+    graded_a, graded_b = _graded_total(school_a), _graded_total(school_b)
+    div1_rate_a = round(school_a.div_1_total / graded_a * 100, 1) if graded_a else None
+    div1_rate_b = round(school_b.div_1_total / graded_b * 100, 1) if graded_b else None
+
+    rows = [
+        {'label': 'GPA', 'a': school_a.center_gpa, 'b': school_b.center_gpa,
+         'direction': 'lower_better', 'fmt': lambda v: f'{v}' if v is not None else '-'},
+        {'label': 'Kufaulu', 'a': school_a.pass_rate, 'b': school_b.pass_rate,
+         'direction': 'higher_better', 'fmt': lambda v: f'{v}%' if v is not None else '-'},
+        {'label': 'Div I', 'a': div1_rate_a, 'b': div1_rate_b,
+         'direction': 'higher_better', 'fmt': lambda v: f'{v}%' if v is not None else '-'},
+        {'label': 'Nafasi Kitaifa', 'a': school_a.national_rank, 'b': school_b.national_rank,
+         'direction': 'lower_better', 'fmt': lambda v: f'#{v}' if v is not None else '-'},
+        {'label': 'Wavulana Kufaulu', 'a': school_a.pass_rate_male, 'b': school_b.pass_rate_male,
+         'direction': 'higher_better', 'fmt': lambda v: f'{v}%' if v is not None else '-'},
+        {'label': 'Wasichana Kufaulu', 'a': school_a.pass_rate_female, 'b': school_b.pass_rate_female,
+         'direction': 'higher_better', 'fmt': lambda v: f'{v}%' if v is not None else '-'},
+        {'label': 'Watahiniwa', 'a': school_a.sat_total, 'b': school_b.sat_total,
+         'direction': 'neutral', 'fmt': lambda v: f'{v}' if v is not None else '-'},
+    ]
+
+    W = 1080
+    header_h, title_block_h, row_h, footer_h = 130, 190, 130, 100
+    subject_block_h = 140 if (best_subject_a or best_subject_b) else 0
+    H = header_h + title_block_h + row_h * len(rows) + subject_block_h + footer_h + 40
+
+    img = Image.new('RGB', (W, H), PAPER)
+    draw = ImageDraw.Draw(img)
+    _header(draw, W, f'{session.exam_level} {session.year}', 'Linganisha Moja kwa Moja')
+
+    y = header_h + 20
+    bar_w = (W - 160) / 2
+    center_x = W / 2
+
+    _centered(draw, 80 + bar_w / 2, y, school_a.center_name[:22], F_BOLD(24), NAVY)
+    _centered(draw, W - 80 - bar_w / 2, y, school_b.center_name[:22], F_BOLD(24), NAVY)
+    _centered(draw, center_x, y + 6, 'VS', F_DISPLAY(30), GOLD)
+    y += 46
+    _centered(draw, 80 + bar_w / 2, y, school_a.region, F_MED(16), SLATE)
+    _centered(draw, W - 80 - bar_w / 2, y, school_b.region, F_MED(16), SLATE)
+    y += 60
+
+    draw.line([60, y, W - 60, y], fill=LINE, width=2)
+    y += 30
+
+    for row in rows:
+        val_a, val_b, direction = row['a'], row['b'], row['direction']
+
+        _centered(draw, center_x, y, row['label'], F_MED(20), SLATE)
+        _centered(draw, 80 + bar_w / 2, y, row['fmt'](val_a), F_BOLD(26), NAVY)
+        _centered(draw, W - 80 - bar_w / 2, y, row['fmt'](val_b), F_BOLD(26), NAVY)
+        y += 40
+
+        winner = None
+        if val_a is not None and val_b is not None and direction != 'neutral':
+            if direction == 'lower_better':
+                winner = 'a' if val_a < val_b else ('b' if val_b < val_a else None)
+            else:
+                winner = 'a' if val_a > val_b else ('b' if val_b > val_a else None)
+
+        color_a = GOLD if winner == 'a' else LINE
+        color_b = GOLD if winner == 'b' else LINE
+
+        def _strength(v):
+            if v is None:
+                return 0
+            return v if direction != 'lower_better' else (1 / v if v > 0 else 0)
+
+        sa, sb = _strength(val_a), _strength(val_b)
+        total = sa + sb
+        frac_a = (sa / total) if total > 0 else 0.5
+        frac_b = (sb / total) if total > 0 else 0.5
+
+        bar_h = 18
+        left_len = frac_a * bar_w
+        draw.rounded_rectangle([center_x - 20 - left_len, y, center_x - 20, y + bar_h], radius=9, fill=color_a)
+        right_len = frac_b * bar_w
+        draw.rounded_rectangle([center_x + 20, y, center_x + 20 + right_len, y + bar_h], radius=9, fill=color_b)
+        y += row_h - 40 - bar_h
+
+    if best_subject_a or best_subject_b:
+        y += 10
+        draw.line([60, y, W - 60, y], fill=LINE, width=1)
+        y += 24
+        _centered(draw, center_x, y, 'Somo Bora Zaidi', F_MED(20), SLATE)
+        y += 40
+        if best_subject_a:
+            _centered(draw, 80 + bar_w / 2, y, best_subject_a['subject_name'], F_BOLD(20), NAVY)
+            _centered(draw, 80 + bar_w / 2, y + 30, f'GPA {best_subject_a["subject_gpa"]}', F_MONO(18), GREEN)
+        if best_subject_b:
+            _centered(draw, W - 80 - bar_w / 2, y, best_subject_b['subject_name'], F_BOLD(20), NAVY)
+            _centered(draw, W - 80 - bar_w / 2, y + 30, f'GPA {best_subject_b["subject_gpa"]}', F_MONO(18), GREEN)
+
+    _footer(draw, W, H, 'skulinode.co.tz/necta')
+    return _png(img)
