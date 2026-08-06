@@ -7,7 +7,7 @@ Visual language matches the web brand: navy/gold/paper palette.
 """
 import io
 import os
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont,ImageOps
 
 NAVY       = (30, 58, 95)
 NAVY_DEEP  = (20, 42, 68)
@@ -50,6 +50,26 @@ def _text_w(draw, text, font):
     return bbox[2] - bbox[0]
 
 
+def _fit_school_name(draw, name, max_w, font):
+    # Shorten long repeated institutional phrases first
+    shortened = (
+        name.replace("SECONDARY SCHOOL", "SEC. SCHOOL")
+            .replace("HIGH SCHOOL", "HIGH")
+            .replace("PRIMARY SCHOOL", "PRI. SCHOOL")
+    )
+    
+    # Return immediately if it already fits the allocated pixel width
+    if _text_w(draw, shortened, font) <= max_w:
+        return shortened
+    
+    # Otherwise trim and append an ellipsis cleanly
+    for i in range(len(shortened), 0, -1):
+        candidate = shortened[:i].strip() + "..."
+        if _text_w(draw, candidate, font) <= max_w:
+            return candidate
+            
+    return shortened
+
 def _centered(draw, cx, y, text, font, fill):
     w = _text_w(draw, text, font)
     draw.text((cx - w / 2, y), text, font=font, fill=fill)
@@ -59,15 +79,20 @@ def _header(draw, W, label, sublabel=None, img_obj=None):
     draw.rectangle([0, 0, W, 130], fill=NAVY)
     draw.rectangle([0, 126, W, 130], fill=GOLD)
     
-    # Try to load and paste logo.jpg instead of the letter 'S'
     logo_drawn = False
     if os.path.exists(LOGO_PATH):
         try:
             with Image.open(LOGO_PATH) as logo:
-                logo = logo.resize((54, 54), Image.Resampling.LANCZOS)
-                # If logo has transparency/alpha, paste with mask, else paste directly
+                logo = logo.convert('RGBA')
+                # Fit inside 54x54 box proportionally without cropping top/bottom
+                logo.thumbnail((54, 54), Image.Resampling.LANCZOS)
+                
                 if img_obj:
-                    img_obj.paste(logo, (36, 36))
+                    # Center the logo inside the 54x54 space at (36, 36)
+                    lw, lh = logo.size
+                    offset_x = 36 + (54 - lw) // 2
+                    offset_y = 36 + (54 - lh) // 2
+                    img_obj.paste(logo, (offset_x, offset_y), mask=logo)
                     logo_drawn = True
         except Exception:
             pass
@@ -392,8 +417,13 @@ def generate_head_to_head_card(school_a, school_b, session, best_subject_a=None,
     bar_w = (W - 160) / 2
     center_x = W / 2
 
-    _centered(draw, 80 + bar_w / 2, y, school_a.center_name[:22], F_BOLD(24), NAVY)
-    _centered(draw, W - 80 - bar_w / 2, y, school_b.center_name[:22], F_BOLD(24), NAVY)
+    # Fit names dynamically to available side column width (minus padding)
+    max_name_w = bar_w - 20
+    name_a = _fit_school_name(draw, school_a.center_name, max_name_w, F_BOLD(24))
+    name_b = _fit_school_name(draw, school_b.center_name, max_name_w, F_BOLD(24))
+
+    _centered(draw, 80 + bar_w / 2, y, name_a[:22], F_BOLD(24), NAVY)
+    _centered(draw, W - 80 - bar_w / 2, y, name_b[:22], F_BOLD(24), NAVY)
     _centered(draw, center_x, y + 6, 'VS', F_DISPLAY(30), GOLD)
     y += 46
     _centered(draw, 80 + bar_w / 2, y, school_a.region, F_MED(16), SLATE)
