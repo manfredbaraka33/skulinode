@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { NECTA_API as API } from '../../config/api';
-import { Download, ExternalLink, TrendingUp, Users2 } from 'lucide-react';
+import { Download, ExternalLink, TrendingUp, Users2,Link2 } from 'lucide-react';
 import CompareModal from './CompareModal';
 import { Helmet } from 'react-helmet-async';
 
@@ -12,6 +12,14 @@ export default function SchoolProfile() {
   const [trend, setTrend] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+
+  const [copied, setCopied] = useState(false);
+  function copyLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   useEffect(() => {
     axios.get(`${API}/school/${centerId}/?level=ACSEE&year=2026`).then(r => setSchool(r.data));
@@ -86,6 +94,10 @@ export default function SchoolProfile() {
             <Users2 size={15}/> Linganisha
           </button>
         </div>
+          <button onClick={copyLink}
+            className="mt-3 flex items-center gap-1.5 mx-auto px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-full transition">
+            <Link2 size={13}/> {copied ? 'Kiungo Kimenakiliwa! ✓' : 'Nakili Kiungo'}
+          </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5">

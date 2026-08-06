@@ -10,6 +10,8 @@ export default function CompareModal({ initialCenterId, level, year, onClose }) 
   const [selectedIds, setSelectedIds] = useState(initialCenterId ? [initialCenterId.toUpperCase()] : []);
   const [schools, setSchools] = useState([]);
   const [downloading, setDownloading] = useState(false);
+  const [headToHeadUrl, setHeadToHeadUrl] = useState(null);
+  const [loadingH2H, setLoadingH2H] = useState(false);
 
   useEffect(() => {
     if (query.trim().length < 2) { setSuggestions([]); return; }
@@ -25,6 +27,19 @@ export default function CompareModal({ initialCenterId, level, year, onClose }) 
     axios.get(`${API}/compare/?level=${level}&year=${year}&centers=${selectedIds.join(',')}`)
       .then(r => setSchools(r.data.results));
   }, [selectedIds, level, year]);
+
+  useEffect(() => {
+  if (schools.length !== 2) { setHeadToHeadUrl(null); return; }
+  setLoadingH2H(true);
+  axios.get(
+    `${API}/cards/head-to-head/?level=${level}&year=${year}&center_a=${schools[0].center_id}&center_b=${schools[1].center_id}`,
+    { responseType: 'blob' }
+  ).then(r => setHeadToHeadUrl(prev => {
+    if (prev) window.URL.revokeObjectURL(prev);
+    return window.URL.createObjectURL(new Blob([r.data]));
+  })).finally(() => setLoadingH2H(false));
+}, [schools, level, year]);
+
 
   function addSchool(id) {
     if (selectedIds.includes(id) || selectedIds.length >= 4) return;
@@ -103,6 +118,23 @@ export default function CompareModal({ initialCenterId, level, year, onClose }) 
               </tbody>
             </table>
           </div>
+
+          {schools.length === 2 && (
+          <div className="border-t border-slate-200 pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-slate-700 mb-3">Linganisha Moja kwa Moja</h3>
+            {loadingH2H ? (
+              <div className="text-center py-8 text-slate-400 text-sm">Inatengeneza kadi...</div>
+            ) : headToHeadUrl ? (
+              <div className="space-y-3">
+                <img src={headToHeadUrl} alt="Head to Head" className="w-full rounded-xl border border-slate-200" />
+                <a href={headToHeadUrl} download={`h2h_${schools[0].center_id}_vs_${schools[1].center_id}.png`}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#c4a014] text-[#142a44] rounded-lg text-sm font-bold">
+                  <Download size={15}/> Pakua Kadi ya Head-to-Head
+                </a>
+              </div>
+            ) : null}
+          </div>
+        )}
 
           <button onClick={downloadCompareCard} disabled={downloading || schools.length < 2}
             className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#1e3a5f] text-white rounded-lg text-sm font-semibold disabled:opacity-50">

@@ -336,7 +336,7 @@ class SchoolSearchView(APIView):
 from django.http import HttpResponse
 from .card_generator import (
     generate_school_card, generate_region_card, generate_gem_card,
-    generate_gender_card, generate_subject_card, generate_compare_card,
+    generate_gender_card, generate_subject_card, generate_compare_card,generate_head_to_head_card
 )
 
 
@@ -620,4 +620,36 @@ class CompareCardView(APIView):
         buf = generate_compare_card(schools, level, year)
         resp = HttpResponse(buf.read(), content_type='image/png')
         resp['Content-Disposition'] = 'attachment; filename="ulinganisho.png"'
+        return resp
+
+
+
+class HeadToHeadCardView(APIView):
+    """GET /api/necta/cards/head-to-head/?level=&year=&center_a=&center_b="""
+    permission_classes = []
+
+    def get(self, request):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        center_a_id = request.query_params.get('center_a')
+        center_b_id = request.query_params.get('center_b')
+
+        if not center_a_id or not center_b_id:
+            return Response({'error': 'center_a and center_b are both required.'}, status=400)
+
+        try:
+            session  = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+            school_a = SchoolCenter.objects.get(exam_session=session, center_id=center_a_id.upper())
+            school_b = SchoolCenter.objects.get(exam_session=session, center_id=center_b_id.upper())
+        except (ExamSession.DoesNotExist, SchoolCenter.DoesNotExist):
+            return Response({'error': 'One or both schools not found.'}, status=404)
+
+        best_a = school_a.subjects.filter(subject_gpa__isnull=False).order_by('subject_gpa').first()
+        best_b = school_b.subjects.filter(subject_gpa__isnull=False).order_by('subject_gpa').first()
+        best_subject_a = {'subject_name': best_a.subject_name, 'subject_gpa': best_a.subject_gpa} if best_a else None
+        best_subject_b = {'subject_name': best_b.subject_name, 'subject_gpa': best_b.subject_gpa} if best_b else None
+
+        buf = generate_head_to_head_card(school_a, school_b, session, best_subject_a, best_subject_b)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = f'attachment; filename="h2h_{school_a.center_id}_vs_{school_b.center_id}.png"'
         return resp
