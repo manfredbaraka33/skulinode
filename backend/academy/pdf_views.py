@@ -624,11 +624,17 @@ class ResultsPDFView(APIView):
                     row.append('–')
             row.append(str(r['total_score']) if r['total_score'] is not None else '–')
             row.append(str(r['average']) if r['average'] is not None else '–')
+            # if is_primary:
+            #     row.append(r['grade'] or '–')
+            # else:
+            #     row.append(str(r['points']) if r['points'] is not None else '–')
+            #     row.append(r['division'] or '–')
             if is_primary:
                 row.append(r['grade'] or '–')
             else:
                 row.append(str(r['points']) if r['points'] is not None else '–')
-                row.append(r['division'] or '–')
+                # Replace 'Division ' with nothing, but only if r['division'] is not None
+                row.append(r['division'].replace('Division ', '') if r['division'] else '–')
             tbl_data.append(row)
 
         standings_tbl = Table(tbl_data, colWidths=col_widths, repeatRows=1)

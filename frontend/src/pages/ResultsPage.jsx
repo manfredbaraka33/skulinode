@@ -907,7 +907,7 @@ export default function ResultsPage() {
                         <td className="pr-8 py-1">
                           <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded-full ${DIV_COLOR[row.div] ?? 'bg-slate-100 text-slate-600'}`}>
                             {/* {row.div} */}
-                            {row.division.replace('Division ', '')}
+                            {row.division?.replace('Division ', '') || '—'}
                           </span>
                         </td>
                         <td className="text-center px-6 py-1 font-mono text-blue-600 dark:text-blue-400">{row.M}</td>
@@ -1129,7 +1129,8 @@ export default function ResultsPage() {
                         <tr key={row.div} className="border-b border-slate-100 dark:border-slate-700/40">
                           <td className="pr-8 py-1">
                             <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded-full ${DIV_COLOR[row.div] ?? 'bg-slate-100 text-slate-600'}`}>
-                              {row.div}
+                              {/* {row.div} */}
+                              {row.division?.replace('Division ', '') || '—'}
                             </span>
                           </td>
                           <td className="text-center px-6 py-1 font-mono text-blue-600 dark:text-blue-400">{row.M}</td>

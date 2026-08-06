@@ -691,3 +691,6 @@ def generate_compare_card(schools, level, year):
 
     _footer(draw, W, H, 'skulinode.co.tz/necta')
     return _png(img)
+
+
+
