@@ -804,9 +804,9 @@ export default function ResultsPage() {
                 <span className="text-xs text-slate-400 italic">← scroll for all {results.subjects.length} subjects →</span>
               )}
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto max-h-120">
               <table className="w-full text-xs whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20">
                   <tr>
                     <th className="text-left px-3 py-3 font-semibold text-slate-500 uppercase sticky left-0 z-10 bg-slate-50 dark:bg-slate-700/50">Rank</th>
                     <th className="text-left px-3 py-3 font-semibold text-slate-500 uppercase sticky left-10 z-10 bg-slate-50 dark:bg-slate-700/50 min-w-36">Student</th>

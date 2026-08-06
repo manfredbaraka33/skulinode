@@ -430,19 +430,19 @@ function StudentFormModal({ student, streams, onClose, onSuccess, onError }) {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">First Name</label>
-            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            <label className="block text-xs font-medium text-slate-400 mb-1">First Name</label>
+            <input className="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
               {...register('first_name', { required: 'Required' })} />
             <FieldError message={errors.first_name?.message} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Middle Name <span className="text-slate-400 font-normal">(opt.)</span></label>
-            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            <label className="block text-xs font-medium text-slate-400 mb-1">Middle Name <span className="text-slate-400 font-normal">(opt.)</span></label>
+            <input className="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
               {...register('middle_name')} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Last Name</label>
-            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            <label className="block text-xs font-medium text-slate-400 mb-1">Last Name</label>
+            <input className="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
               {...register('last_name', { required: 'Required' })} />
             <FieldError message={errors.last_name?.message} />
           </div>
@@ -450,8 +450,8 @@ function StudentFormModal({ student, streams, onClose, onSuccess, onError }) {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Gender</label>
-            <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            <label className="block text-xs font-medium text-slate-400 mb-1">Gender</label>
+            <select className="w-full border border-slate-200 rounded-lg px-3  py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               {...register('gender', { required: 'Required' })}>
               <option value="">Select…</option>
               <option value="M">Male</option>
@@ -460,7 +460,7 @@ function StudentFormModal({ student, streams, onClose, onSuccess, onError }) {
             <FieldError message={errors.gender?.message} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Class / Stream</label>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Class / Stream</label>
             <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               {...register('stream', { required: 'Required' })}>
               <option value="">Select class…</option>
@@ -472,19 +472,19 @@ function StudentFormModal({ student, streams, onClose, onSuccess, onError }) {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Parent Phone <span className="text-slate-400 font-normal">(opt.)</span></label>
-            <input type="tel" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            <label className="block text-xs font-medium text-slate-400 mb-1">Parent Phone <span className="text-slate-400 font-normal">(opt.)</span></label>
+            <input type="tel" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               placeholder="+255712345678" {...register('parent_phone')} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Admission No. <span className="text-slate-400 font-normal">(opt.)</span></label>
-            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            <label className="block text-xs font-medium text-slate-400 mb-1">Admission No. <span className="text-slate-400 font-normal">(opt.)</span></label>
+            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               {...register('admission_number')} />
           </div>
         </div>
 
         <div className="flex gap-3 justify-end pt-1">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
           <button type="submit" disabled={isSubmitting}
             className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60">
             {isSubmitting && <Loader2 size={14} className="animate-spin" />}

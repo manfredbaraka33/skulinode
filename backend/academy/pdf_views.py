@@ -738,7 +738,7 @@ class ResultsPDFView(APIView):
                     Paragraph(f'<b>{tot_t}</b>', val_s),
                 ])
                 col_w = 45 * mm
-                dg_tbl = Table(dg_rows, colWidths=[col_w] * 4, hAlign='LEFT')
+                dg_tbl = Table(dg_rows, colWidths=[col_w] * 4, hAlign='CENTER')
                 dg_tbl.setStyle(TableStyle([
                     ('BACKGROUND',   (0, 0),  (-1, 0),  NAVY),
                     ('LINEBELOW',    (0, 0),  (-1, 0),  1,    GOLD),
@@ -811,9 +811,9 @@ class ResultsPDFView(APIView):
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]
         # Colour grade header labels
-        for gi, g in enumerate(grade_labels):
-            col = 2 + gi
-            at_style.append(('TEXTCOLOR', (col, 0), (col, 0), GRADE_COLORS.get(g, SLATE_GREY)))
+        # for gi, g in enumerate(grade_labels):
+        #     col = 2 + gi
+        #     at_style.append(('TEXTCOLOR', (col, 0), (col, 0), GRADE_COLORS.get(g, SLATE_GREY)))
         # Pass% and score columns
         pass_col = 2 + len(grade_labels)
         at_style += [
@@ -1778,7 +1778,7 @@ class CombinedResultsPDFView(APIView):
                     Paragraph(f'<b>{tot_t}</b>', val_s),
                 ])
                 col_w = 45 * mm
-                dg_tbl = Table(dg_rows, colWidths=[col_w] * 4, hAlign='LEFT')
+                dg_tbl = Table(dg_rows, colWidths=[col_w] * 4, hAlign='CENTER')
                 dg_tbl.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), NAVY),
                     ('LINEBELOW', (0, 0), (-1, 0), 1, GOLD),
