@@ -43,6 +43,8 @@ class TCUCalculateView(APIView):
         cohort   = request.data.get('cohort', '2016_ONWARDS')
         subjects = request.data.get('subjects', [])
         region   = request.data.get('region')
+        ownership = request.data.get('ownership')
+        category  = request.data.get('category')
 
         if not subjects:
             return Response({'error': 'At least one subject with a grade is required.'}, status=400)
@@ -53,6 +55,6 @@ class TCUCalculateView(APIView):
             return Response({'error': 'Admission cycle not found.'}, status=404)
 
         result = calculate_eligibility(
-            student_subjects=subjects, cohort=cohort, cycle=cycle, region=region,
+            student_subjects=subjects, cohort=cohort, cycle=cycle, region=region, ownership=ownership, category=category,
         )
         return Response(result)

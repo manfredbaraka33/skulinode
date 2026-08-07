@@ -19,6 +19,12 @@ class TCUInstitution(models.Model):
     name     = models.CharField(max_length=300, db_index=True)
     location = models.CharField(max_length=150, blank=True)
 
+    OWNERSHIP_CHOICES = [
+        ('GOVERNMENT', 'Serikali'), ('PRIVATE', 'Binafsi'), ('UNKNOWN', 'Haijulikani'),
+    ]
+    ownership       = models.CharField(max_length=15, choices=OWNERSHIP_CHOICES, default='UNKNOWN')
+    application_url = models.URLField(null=True, blank=True)
+
     class Meta:
         unique_together = ['cycle', 'name','location']
         ordering = ['name']
@@ -34,12 +40,27 @@ class TCUProgramme(models.Model):
         ('needs_review', 'Needs Review'),
     ]
 
+    CATEGORY_CHOICES = [
+        ('ELIMU',      'Elimu'),
+        ('AFYA',       'Afya na Sayansi ya Tiba'),
+        ('UHANDISI',   'Uhandisi na Teknolojia'),
+        ('BIASHARA',   'Biashara na Uchumi'),
+        ('SHERIA',     'Sheria'),
+        ('KILIMO',     'Kilimo na Mifugo'),
+        ('JAMII',      'Sayansi ya Jamii na Binadamu'),
+        ('SANAA',      'Sanaa na Ubunifu'),
+        ('TEHAMA',     'TEHAMA'),
+        ('UTAWALA',    'Utawala wa Umma'),
+        ('NYINGINE',   'Nyingine'),
+    ]
+
     institution   = models.ForeignKey(TCUInstitution, on_delete=models.CASCADE, related_name='programmes')
     programme_name = models.CharField(max_length=300, db_index=True)
     programme_code  = models.CharField(max_length=30, blank=True)
     min_points_total = models.FloatField(null=True, blank=True)
     capacity        = models.IntegerField(null=True, blank=True)
     duration_years  = models.IntegerField(null=True, blank=True)
+    category        = models.CharField(max_length=15, choices=CATEGORY_CHOICES, blank=True, default='')
 
     # List of {"subjects": [...], "count_needed": int, "min_grade": str|null}
     slots = models.JSONField(default=list)

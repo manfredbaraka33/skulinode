@@ -23,6 +23,27 @@ const COMMON_SUBJECTS = [
   'General Studies',
 ];
 
+const OWNERSHIP_OPTIONS = [
+  { value: '', label: 'Zote' },
+  { value: 'GOVERNMENT', label: 'Serikali' },
+  { value: 'PRIVATE', label: 'Binafsi' },
+];
+
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'Zote' },
+  { value: 'ELIMU', label: 'Elimu' },
+  { value: 'AFYA', label: 'Afya na Sayansi ya Tiba' },
+  { value: 'UHANDISI', label: 'Uhandisi na Teknolojia' },
+  { value: 'BIASHARA', label: 'Biashara na Uchumi' },
+  { value: 'SHERIA', label: 'Sheria' },
+  { value: 'KILIMO', label: 'Kilimo na Mifugo' },
+  { value: 'JAMII', label: 'Sayansi ya Jamii na Binadamu' },
+  { value: 'SANAA', label: 'Sanaa na Ubunifu' },
+  { value: 'TEHAMA', label: 'TEHAMA' },
+  { value: 'UTAWALA', label: 'Utawala wa Umma' },
+  { value: 'NYINGINE', label: 'Nyingine' },
+];
+
 export default function TCUCalculator() {
   const [cycles, setCycles] = useState([]);
   const [cycleId, setCycleId] = useState(null);
@@ -32,6 +53,8 @@ export default function TCUCalculator() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [ownership, setOwnership] = useState('');
+  const [category, setCategory]   = useState('');
 
   useEffect(() => {
     axios.get(`${API}/cycles/`).then(r => {
@@ -64,6 +87,8 @@ export default function TCUCalculator() {
       const r = await axios.post(`${API}/calculate/`, {
         cycle_id: cycleId, cohort, subjects: valid,
         region: region || undefined,
+        ownership: ownership || undefined,
+        category: category || undefined,
       });
       setResult(r.data);
     } catch (e) {
@@ -104,6 +129,20 @@ export default function TCUCalculator() {
             <input value={region} onChange={e => setRegion(e.target.value)}
               placeholder="e.g. Dar es Salaam"
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"/>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Umiliki</label>
+            <select value={ownership} onChange={e => setOwnership(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+              {OWNERSHIP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 mb-1 block">Aina ya Kozi</label>
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+              {CATEGORY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
           </div>
         </div>
 
@@ -219,6 +258,26 @@ function Results({ result }) {
                 )}
               </div>
             </div>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {p.category && (
+                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{p.category}</span>
+              )}
+              {/* <span className="text-xs text-slate-400">{p.institution_ownership}</span> */}
+              
+              {p?.institution_ownership && 
+                p.institution_ownership.trim().toLowerCase() !== "haijulikani" && (
+                  <span className="text-xs text-slate-400">
+                    {p.institution_ownership}
+                  </span>
+                )}
+            </div>
+            {p.application_url && (
+              <a href={p.application_url} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-blue-600 font-semibold mt-1 inline-block">
+                Fungua Portal ya Maombi →
+              </a>
+            )}
+            
             {p.capacity && (
               <div className="text-xs text-slate-400 mt-2">
                 Nafasi: {p.capacity} · Muda: miaka {p.duration_years}

@@ -131,7 +131,7 @@ def evaluate_programme(programme, student_subjects, cohort):
     }
 
 
-def calculate_eligibility(student_subjects, cohort, cycle, region=None,
+def calculate_eligibility(student_subjects, cohort, cycle, region=None,ownership=None, category=None,
                           min_capacity=None, close_miss_threshold=1.0):
     """
     Main entry point. Evaluates every published programme in the given
@@ -152,6 +152,10 @@ def calculate_eligibility(student_subjects, cohort, cycle, region=None,
 
     if region:
         qs = qs.filter(institution__location__icontains=region)
+    if ownership:
+        qs = qs.filter(institution__ownership=ownership)
+    if category:
+        qs = qs.filter(category=category)
 
     eligible, close_miss, ineligible = [], [], []
 
@@ -161,8 +165,11 @@ def calculate_eligibility(student_subjects, cohort, cycle, region=None,
             'programme_id': programme.id,
             'programme_name': programme.programme_name,
             'programme_code': programme.programme_code,
+            'category': programme.get_category_display() if programme.category else None,
             'institution_name': programme.institution.name,
+            'institution_ownership': programme.institution.get_ownership_display(),
             'institution_location': programme.institution.location,
+            'application_url': programme.institution.application_url,
             'min_points_total': programme.min_points_total,
             'capacity': programme.capacity,
             'duration_years': programme.duration_years,

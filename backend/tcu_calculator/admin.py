@@ -16,8 +16,9 @@ class TCUAdmissionCycleAdmin(admin.ModelAdmin):
 
 @admin.register(TCUInstitution)
 class TCUInstitutionAdmin(admin.ModelAdmin):
-    list_display = ['name', 'location', 'cycle', 'programme_count']
-    list_filter = ['cycle']
+    list_display = ['name', 'location', 'cycle', 'programme_count','ownership','application_url']
+    list_filter = ['cycle','ownership']
+    list_editable = ['ownership', 'application_url']
     search_fields = ['name', 'location']
 
     def programme_count(self, obj):
@@ -26,6 +27,7 @@ class TCUInstitutionAdmin(admin.ModelAdmin):
 
 @admin.register(TCUProgramme)
 class TCUProgrammeAdmin(admin.ModelAdmin):
-    list_display = ['programme_name', 'institution', 'min_points_total', 'status', 'health_override_mismatch']
-    list_filter = ['status', 'health_override_mismatch', 'institution__cycle']
+    list_display = ['programme_name' ,'category', 'institution', 'min_points_total', 'status', 'health_override_mismatch']
+    list_filter = ['status','category', 'health_override_mismatch', 'institution__cycle']
     search_fields = ['programme_name', 'programme_code', 'institution__name']
+    list_editable = ['category']
