@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
- import { Helmet } from 'react-helmet-async';
+import { Helmet } from 'react-helmet-async';
+import TCUInsights from './TCUInsights';
+import TCUProgrammeCompareModal from './TCUProgrammeCompareModal';
+import { FileDown, Users2 } from 'lucide-react';
 
 const API = (() => {
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -55,6 +58,9 @@ export default function TCUCalculator() {
   const [error, setError] = useState('');
   const [ownership, setOwnership] = useState('');
   const [category, setCategory]   = useState('');
+
+  const [showInsights, setShowInsights] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/cycles/`).then(r => {
@@ -113,6 +119,31 @@ export default function TCUCalculator() {
           Hesabu pointi zako na uone programu unazostahili — kutoka Mwongozo Rasmi wa TCU
         </p>
       </div>
+
+
+        <div className="flex flex-wrap gap-2 justify-center mb-6">
+          <button onClick={() => setShowInsights(v => !v)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
+            📊 {showInsights ? 'Ficha' : 'Ona'} Takwimu za TCU
+          </button>
+          <button onClick={() => setShowCompare(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
+            <Users2 size={15}/> Linganisha Kozi
+          </button>
+          {cycleId && (
+            <a href={`${API}/guidebook/?cycle_id=${cycleId}`} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
+              <FileDown size={15}/> Pakua Mwongozo (PDF)
+            </a>
+          )}
+        </div>
+
+        {showInsights && (
+          <div className="mb-8">
+            <TCUInsights cycleId={cycleId} />
+          </div>
+        )}
+
 
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {/* Cohort + region */}
@@ -186,8 +217,13 @@ export default function TCUCalculator() {
           {loading ? 'Inahesabu...' : 'Hesabu Pointi Zangu'}
         </button>
 
+ 
+
         {result && <Results result={result} />}
-      </div>
+               {showCompare && (
+            <TCUProgrammeCompareModal cycleId={cycleId} onClose={() => setShowCompare(false)} />
+          )}
+        </div>
     </div>
   );
 }

@@ -6,7 +6,13 @@ class TCUAdmissionCycle(models.Model):
     academic_year = models.CharField(max_length=20, unique=True)
     is_published  = models.BooleanField(default=False)
     imported_at   = models.DateTimeField(auto_now_add=True)
-
+    guidebook_pdf = models.FileField(upload_to='tcu_guidebooks/', null=True, 
+                                     max_length=255,
+                                     blank=True,
+                                     help_text='The official TCU admission guidebook PDF for this cycle')
+    
+    insights_data = models.JSONField(default=dict, blank=True)
+    
     class Meta:
         ordering = ['-academic_year']
 

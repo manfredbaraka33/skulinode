@@ -32,6 +32,7 @@ import ComingSoonPage from './pages/ComingSoonPage';
 import TCUCalculator from './pages/tcu/TCUCalculator';
 
 
+
 function App() {
   return (
     <AuthProvider>
@@ -41,15 +42,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/necta" element={<NectaDashboard />} />
           <Route path="/necta/shule/:centerId" element={<SchoolProfile />} />
-          <Route path="/past-papers" element={
-          <ComingSoonPage
-            icon="📝"
-            title="Maswali ya Zamani"
-            description="Tunatengeneza maktaba ya maswali ya NECTA ya miaka iliyopita, yakiwa yamepangwa kwa somo na mada. Inakuja hivi karibuni."
-          />
-        } />
-
+          
           <Route path="/tcu" element={<TCUCalculator />} />
+          
           <Route path="/login" element={<Login />} />
           <Route path="/register-school" element={<RegisterSchool />} />
           <Route path="/pending-verification" element={<PendingVerification />} />

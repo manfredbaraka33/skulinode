@@ -12,3 +12,11 @@ export const NECTA_API = isLocal
 export const API = isLocal
   ? 'http://127.0.0.1:8000/api/v1'
   : 'https://skulinode.co.tz/api/v1';
+
+
+
+export const TCU_API = isLocal
+  ? 'http://127.0.0.1:8000/api/tcu'
+  : 'https://skulinode.co.tz/api/tcu';
+
+

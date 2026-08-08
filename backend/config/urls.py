@@ -16,6 +16,7 @@ urlpatterns = [
     path('api/public/necta/', include('necta_results.urls')),
     path('api/tcu/', include('tcu_calculator.urls')),
     path('sitemap.xml', SitemapView.as_view()),
+   
 
 ]
 

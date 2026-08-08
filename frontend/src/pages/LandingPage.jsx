@@ -21,8 +21,8 @@ export default function LandingPage() {
 
 // inside the component, near the top of the returned JSX:
 <Helmet>
-  <title>SkuliNode — Matokeo ya NECTA, Maswali ya Zamani na TCU Tanzania</title>
-  <meta name="description" content="Angalia matokeo ya NECTA kwa shule, mkoa na wilaya. Hesabu pointi zako za TCU. Pata maswali ya zamani ya mitihani. Bure kwa kila Mtanzania." />
+  <title>SkuliNode — Matokeo ya NECTA na TCU calculator</title>
+  <meta name="description" content="Angalia matokeo ya NECTA kwa shule, mkoa na wilaya. Tafuta kozi unazostahili kusoma kulingana na ufaulu wako. Bure kwa kila Mtanzania." />
 </Helmet>
 
   return (
@@ -71,7 +71,7 @@ export default function LandingPage() {
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
             <button onClick={() => navigate('/necta')} className="hover:text-[var(--navy)] transition">Matokeo ya NECTA</button>
-            <button onClick={() => navigate('/past-papers')} className="hover:text-[var(--navy)] transition">Maswali ya Zamani</button>
+            {/* <button onClick={() => navigate('/past-papers')} className="hover:text-[var(--navy)] transition">Maswali ya Zamani</button> */}
             <button onClick={() => navigate('/tcu')} className="hover:text-[var(--navy)] transition">Kikokotoo cha TCU</button>
           </div>
           <button onClick={() => navigate('/login')}
@@ -140,7 +140,7 @@ export default function LandingPage() {
         <h2 className="font-display text-2xl font-semibold text-[var(--navy)] text-center mb-2">
           Chagua Unachohitaji
         </h2>
-        <p className="text-slate-500 text-center text-sm mb-10">Zana nne, watu wote wa elimu</p>
+        <p className="text-slate-500 text-center text-sm mb-10">Zana tatu, wadau wote wa elimu</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <PathCard
@@ -153,11 +153,11 @@ export default function LandingPage() {
             desc="Nafasi za shule, mikoa, na masomo — kitaifa hadi wilaya."
             action={() => navigate('/necta')} cta="Angalia Matokeo →"
           />
-          <PathCard
+          {/* <PathCard
             icon="📝" title="Maswali ya Zamani"
             desc="Maswali ya NECTA ya miaka iliyopita, kwa kila somo."
-            comingSoon
-          />
+            action={() => navigate('/past-papers')} cta="Tazama Maswali →"
+          /> */}
           <PathCard
             icon="🎓" title="Kikokotoo cha TCU"
             desc="Hesabu pointi zako na uone unastahili programu zipi."
@@ -205,13 +205,13 @@ export default function LandingPage() {
       {/* ── Who it's for ── */}
       <section className="max-w-6xl mx-auto px-4 py-16">
         <h2 className="font-display text-2xl font-semibold text-[var(--navy)] text-center mb-10">
-          Kwa Kila Mtu wa Elimu
+          Kwa Kila Mdau wa Elimu
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <AudienceCard icon="🎒" title="Wanafunzi" desc="Angalia matokeo, jitayarishe na maswali ya zamani." />
-          <AudienceCard icon="👪" title="Wazazi" desc="Fuatilia matokeo na chagua shule kwa data halisi." />
-          <AudienceCard icon="👩🏽‍🏫" title="Walimu" desc="Ingiza alama na tengeneze ripoti kwa dakika." />
-          <AudienceCard icon="🏫" title="Shule" desc="Simamia masomo, fedha, na ripoti — kwa mfumo mmoja." />
+          <AudienceCard icon="🎒" title="Wanafunzi" desc="Angalia matokeo, pata past papers" />
+          <AudienceCard icon="👪" title="Wazazi" desc="Fuatilia matokeo na chagua shule kutokana na data halisi." />
+          <AudienceCard icon="👩🏽‍🏫" title="Walimu" desc="Ingiza alama na utengeneze ripoti ndani ya muda mfupi." />
+          <AudienceCard icon="🏫" title="Shule" desc="Simamia masomo, fedha, na ripoti — kwenye mfumo mmoja." />
         </div>
       </section>
 
@@ -219,19 +219,18 @@ export default function LandingPage() {
       <footer className="bg-[var(--navy-deep)] text-blue-100">
         <div className="max-w-6xl mx-auto px-4 py-10 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            {/* <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
-              <span className="text-[var(--gold)] font-display font-bold text-xs">S</span>
-            </div> */}
+           
             <Logo />
             <span className="font-display font-semibold text-white">SkuliNode</span>
           </div>
           <div className="flex gap-6 text-sm">
             <button onClick={() => navigate('/necta')} className="hover:text-white transition">NECTA</button>
-            <button onClick={() => navigate('/past-papers')} className="hover:text-white transition">Maswali</button>
+            {/* <button onClick={() => navigate('/past-papers')} className="hover:text-white transition">Maswali</button> */}
             <button onClick={() => navigate('/tcu')} className="hover:text-white transition">TCU</button>
             <button onClick={() => navigate('/login')} className="hover:text-white transition">Ingia</button>
           </div>
           <p className="text-xs text-blue-300">© {new Date().getFullYear()} SkuliNode</p>
+           <p className="text-xs text-blue-300">Wasiliana nasi: +255 752 303 770</p>
         </div>
       </footer>
     </div>
