@@ -36,7 +36,7 @@ export default function TCUProgrammeCompareModal({ cycleId, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[100vh] min-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
           <h2 style={{ fontFamily: "'Fraunces', serif" }} className="font-semibold text-[#1e3a5f] text-lg">
             Linganisha Kozi
@@ -44,7 +44,7 @@ export default function TCUProgrammeCompareModal({ cycleId, onClose }) {
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400"><X size={18}/></button>
         </div>
 
-        <div className="p-5 overflow-y-auto">
+        <div className="p-5 overflow-y-auto min-h-[90vh] py-3">
           {selectedIds.length < 2 && (
             <div className="relative mb-4">
               <div className="flex items-center border border-slate-200 rounded-lg px-3 py-2">
