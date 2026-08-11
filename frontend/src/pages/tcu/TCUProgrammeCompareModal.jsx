@@ -70,9 +70,9 @@ export default function TCUProgrammeCompareModal({ cycleId, onClose }) {
           )}
 
           {programmes.length === 2 && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 overflow-y-auto">
               {programmes.map(p => (
-                <div key={p.id} className="border border-slate-200 rounded-xl p-4 relative">
+                <div key={p.id} className="border border-slate-200 rounded-xl p-4 relative overflow-y-auto">
                   <button onClick={() => removeProgramme(p.id)}
                     className="absolute top-2 right-2 text-slate-300 hover:text-red-500"><X size={14}/></button>
                   <div className="font-semibold text-slate-800 text-sm mb-1">{p.programme_name}</div>

@@ -13,6 +13,12 @@ class ExamSession(models.Model):
     is_published = models.BooleanField(default=False)
     imported_at  = models.DateTimeField(auto_now_add=True)
     kpi_data     = models.JSONField(default=dict, blank=True)
+    source_base_url = models.URLField(
+        blank=True,
+        help_text='e.g. https://onlinesys.necta.go.tz/results/2025/csee/ — '
+                   'NECTA has changed domains across years; set this manually per '
+                   'session at import time. Leave blank to hide the source link entirely.'
+    )
 
     class Meta:
         unique_together = ['exam_level', 'year']

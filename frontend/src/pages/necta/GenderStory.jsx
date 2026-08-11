@@ -25,6 +25,10 @@ export default function GenderStory({ level, year }) {
 
   if (!data?.national) return null;
   const { pass_rate_male, pass_rate_female, leader, gap } = data.national;
+  const isTie = leader === 'TIE';
+
+  // if (!data?.national) return null;
+  // const { pass_rate_male, pass_rate_female, leader, gap } = data.national;
 
   return (
     <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-6">
@@ -48,8 +52,16 @@ export default function GenderStory({ level, year }) {
         </div>
       </div>
 
-      <p className="text-sm text-center text-slate-600 mb-4">
+      {/* <p className="text-sm text-center text-slate-600 mb-4">
         <strong>{leader === 'MALE' ? 'Wavulana' : 'Wasichana'}</strong> wanaongoza kwa tofauti ya <strong>{gap}%</strong>
+      </p> */}
+
+      <p className="text-sm text-center text-slate-600 mb-4">
+        {isTie ? (
+          <>Wavulana na Wasichana wako <strong>sawa kabisa</strong> — hakuna anayeongoza</>
+        ) : (
+          <><strong>{leader === 'MALE' ? 'Wavulana' : 'Wasichana'}</strong> wanaongoza kwa tofauti ya <strong>{gap}%</strong></>
+        )}
       </p>
 
       {data.by_region?.length > 0 && (
@@ -59,8 +71,11 @@ export default function GenderStory({ level, year }) {
             {data.by_region.slice(0, 5).map(r => (
               <div key={r.region} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 text-sm">
                 <span className="font-medium text-slate-700">{r.region}</span>
-                <span className={r.gap > 0 ? 'text-blue-600 font-semibold' : 'text-pink-600 font-semibold'}>
+                {/* <span className={r.gap > 0 ? 'text-blue-600 font-semibold' : 'text-pink-600 font-semibold'}>
                   {r.gap > 0 ? `Wavulana +${r.gap}%` : `Wasichana +${Math.abs(r.gap)}%`}
+                </span> */}
+                <span className={r.gap === 0 ? 'text-slate-400 font-semibold' : r.gap > 0 ? 'text-blue-600 font-semibold' : 'text-pink-600 font-semibold'}>
+                  {r.gap === 0 ? 'Sawa' : r.gap > 0 ? `Wavulana +${r.gap}%` : `Wasichana +${Math.abs(r.gap)}%`}
                 </span>
               </div>
             ))}

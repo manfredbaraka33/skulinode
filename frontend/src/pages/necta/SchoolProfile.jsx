@@ -8,6 +8,7 @@ import { Helmet } from 'react-helmet-async';
 
 export default function SchoolProfile() {
   const { centerId } = useParams();
+  const { year } = useParams();
   const [school, setSchool] = useState(null);
   const [trend, setTrend] = useState(null);
   const [downloading, setDownloading] = useState(false);
@@ -22,14 +23,14 @@ export default function SchoolProfile() {
   }
 
   useEffect(() => {
-    axios.get(`${API}/school/${centerId}/?level=ACSEE&year=2026`).then(r => setSchool(r.data));
+    axios.get(`${API}/school/${centerId}/?level=ACSEE&year=${year}`).then(r => setSchool(r.data));
     axios.get(`${API}/trend/school/${centerId}/?level=ACSEE`).then(r => setTrend(r.data));
   }, [centerId]);
 
   async function downloadCard() {
     setDownloading(true);
     try {
-      const r = await axios.get(`${API}/cards/school/${centerId}/?level=ACSEE&year=2026`, { responseType: 'blob' });
+      const r = await axios.get(`${API}/cards/school/${centerId}/?level=ACSEE&year=${year}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([r.data]));
       const a = document.createElement('a');
       a.href = url; a.download = `${centerId}_matokeo.png`;
@@ -46,14 +47,14 @@ export default function SchoolProfile() {
   <Helmet>
   <title>{school.center_name} — Matokeo ya NECTA {school.region} | SkuliNode</title>
   <meta name="description" content={`${school.center_name}, ${school.region}. GPA: ${school.gpa}. Nafasi ya ${school.national_rank} Kitaifa. Kufaulu: ${school.pass_rate}%.`} />
-</Helmet>
+  </Helmet>
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <div className="bg-gradient-to-br from-[#1e3a5f] to-[#142a44] rounded-2xl p-6 text-white text-center">
         <h1 style={{ fontFamily: "'Fraunces', serif" }} className="text-xl font-semibold">{school.center_name}</h1>
         <p className="text-blue-100 text-sm mt-1">{school.region}{school.district ? ` · ${school.district}` : ''}</p>
-
+        <p className="text-blue-200 text-xs mt-0.5">{school.exam_level} {school.year}</p>
         <div className="flex justify-center flex-wrap gap-3 mt-4">
           <div className="bg-white/15 rounded-xl px-4 py-2">
             <div className="text-2xl font-bold">{school.national_rank === 1 ? '🥇' : `#${school.national_rank}`}</div>

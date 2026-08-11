@@ -18,9 +18,9 @@ class CSVUploadForm(forms.Form):
 
 @admin.register(ExamSession)
 class ExamSessionAdmin(admin.ModelAdmin):
-    list_display  = ['exam_level', 'year', 'is_published', 'center_count',
+    list_display  = ['exam_level', 'year', 'is_published','source_base_url', 'center_count',
                      'kpi_summary', 'import_links', 'imported_at']
-    list_editable = ['is_published']
+    list_editable = ['is_published','source_base_url']
 
     def center_count(self, obj):
         return obj.centers.filter(is_rankable=True).count()
@@ -97,21 +97,15 @@ class ExamSessionAdmin(admin.ModelAdmin):
         return render(request, 'admin/csv_upload.html', {'form': form, 'title': f'Upload Subjects CSV — {session}'})
 
 
+
 @admin.register(SchoolCenter)
 class SchoolCenterAdmin(admin.ModelAdmin):
-    list_display  = ['center_id', 'center_name', 'center_type', 'region', 'district',
+    list_display  = ['center_id', 'center_name', 'center_type','exam_session', 'region', 'district',
                      'region_verified', 'center_gpa', 'national_rank', 'is_rankable']
     list_filter   = ['exam_session', 'center_type', 'region_verified', 'is_rankable', 'region']
     search_fields = ['center_id', 'center_name']
     list_editable = ['district']
 
-# @admin.register(SchoolCenter)
-# class SchoolCenterAdmin(admin.ModelAdmin):
-#     list_display  = ['center_id', 'center_name', 'center_type', 'ownership_type', 'region', 'district',
-#                      'region_verified', 'center_gpa', 'national_rank', 'is_rankable']
-#     list_filter   = ['exam_session', 'center_type', 'ownership_type', 'region_verified', 'is_rankable', 'region']
-#     search_fields = ['center_id', 'center_name']
-#     list_editable = ['district', 'ownership_type']
 
 
 @admin.register(RegionalSummary)

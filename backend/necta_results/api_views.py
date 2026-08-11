@@ -340,9 +340,21 @@ from .card_generator import (
 )
 
 
-def _necta_source_url(exam_level, year, center_id):
-    """Direct link to the official NECTA results page for this center."""
-    return f'https://matokeo.necta.go.tz/results/{year}/{exam_level.lower()}/results/{center_id.lower()}.htm'
+
+def _necta_source_url(session, center_id):
+    """
+    Direct link to the official NECTA results page for this center.
+    Returns None if source_base_url wasn't set for this session — NECTA's
+    domain has changed across years and old years may eventually be taken
+    down entirely, so a link is only shown when explicitly confirmed working
+    at import time, never guessed.
+    """
+    if not session.source_base_url:
+        return None
+    base = session.source_base_url.rstrip('/')
+    return f'{base}/results/{center_id.lower()}.htm'
+
+
 
 
 class SchoolDetailView(APIView):
@@ -377,6 +389,7 @@ class SchoolDetailView(APIView):
 
         return Response({
             'center_id': center.center_id, 'center_name': center.center_name,
+            'exam_level': session.exam_level, 'year': session.year,
             'region': center.region, 'district': center.district or None,
             'gpa': center.center_gpa,
             'grade_letter': center.grade_letter, 'grade_label': center.grade_label,
@@ -406,7 +419,7 @@ class SchoolDetailView(APIView):
                 'pass_male': center.pass_male, 'pass_female': center.pass_female,
             },
             'subjects': subjects,
-            'necta_source_url': _necta_source_url(level, year, center.center_id),
+            'necta_source_url': _necta_source_url(session, center.center_id),
         })
 
 

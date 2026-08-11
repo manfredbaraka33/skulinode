@@ -391,12 +391,23 @@ def gender_gap_regional(summary_clean: pd.DataFrame) -> pd.DataFrame:
             round(g['pass_female'].sum() / total_sat_f * 100, 2) if total_sat_f else None
         )
         gap = round(pass_rate_m - pass_rate_f, 2) if pass_rate_m is not None and pass_rate_f is not None else None
+        leader = None
+        if gap is not None:
+            leader = 'TIE' if abs(gap) < 0.05 else ('MALE' if gap > 0 else 'FEMALE')
         return pd.Series({
             'pass_rate_male':   pass_rate_m,
             'pass_rate_female': pass_rate_f,
-            'gap':              gap,   # positive = boys ahead, negative = girls ahead
+            'gap':              gap,
+            'leader':           leader,
             'school_count':     len(g),
         })
+        # gap = round(pass_rate_m - pass_rate_f, 2) if pass_rate_m is not None and pass_rate_f is not None else None
+        # return pd.Series({
+        #     'pass_rate_male':   pass_rate_m,
+        #     'pass_rate_female': pass_rate_f,
+        #     'gap':              gap,   # positive = boys ahead, negative = girls ahead
+        #     'school_count':     len(g),
+        # })
 
     result = rankable.groupby('region').apply(_agg).reset_index()
     result['abs_gap'] = result['gap'].abs()
@@ -480,12 +491,28 @@ def compute_headline_facts(summary_clean: pd.DataFrame, regional_df: pd.DataFram
     if total_sat_m and total_sat_f:
         nat_pass_m = round(rankable['pass_male'].sum() / total_sat_m * 100, 2)
         nat_pass_f = round(rankable['pass_female'].sum() / total_sat_f * 100, 2)
+        gap = round(nat_pass_m - nat_pass_f, 2)
+        # Explicit tie handling — a gap this small must never declare a winner
+        leader = 'TIE' if abs(gap) < 0.05 else ('MALE' if gap > 0 else 'FEMALE')
         facts['national_gender'] = {
             'pass_rate_male': nat_pass_m,
             'pass_rate_female': nat_pass_f,
-            'leader': 'MALE' if nat_pass_m > nat_pass_f else 'FEMALE',
-            'gap': round(abs(nat_pass_m - nat_pass_f), 2),
-        }
+            'leader': leader,
+            'gap': round(abs(gap), 2),
+        }    
+
+    # rankable = summary_clean[summary_clean['is_rankable']]
+    # total_sat_m = rankable['sat_male'].sum()
+    # total_sat_f = rankable['sat_female'].sum()
+    # if total_sat_m and total_sat_f:
+    #     nat_pass_m = round(rankable['pass_male'].sum() / total_sat_m * 100, 2)
+    #     nat_pass_f = round(rankable['pass_female'].sum() / total_sat_f * 100, 2)
+    #     facts['national_gender'] = {
+    #         'pass_rate_male': nat_pass_m,
+    #         'pass_rate_female': nat_pass_f,
+    #         'leader': 'MALE' if nat_pass_m > nat_pass_f else 'FEMALE',
+    #         'gap': round(abs(nat_pass_m - nat_pass_f), 2),
+    #     }
 
     if not gems_df.empty:
         top_gem = gems_df.iloc[0]

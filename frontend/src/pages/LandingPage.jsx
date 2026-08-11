@@ -94,7 +94,7 @@ export default function LandingPage() {
             </h1>
             <p className="text-blue-100 text-base md:text-lg mb-8 max-w-md">
               Kwa shule: usimamizi kamili wa alama na ripoti. Kwa wote: matokeo ya NECTA,
-              maswali ya zamani, na zana za elimu — bila malipo.
+              na kikokotoo cha TCU.
             </p>
             <div className="flex flex-wrap gap-3">
               <button onClick={() => navigate('/login')}
@@ -142,22 +142,18 @@ export default function LandingPage() {
         </h2>
         <p className="text-slate-500 text-center text-sm mb-10">Zana tatu, wadau wote wa elimu</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <PathCard
             icon="🏫" title="SkuliNode kwa Shule"
-            desc="Ingia kusimamia alama, ripoti, na fedha za shule yako."
-            action={() => navigate('/login')} cta="Ingia →" primary
+            desc="Ingia kusimamia alama, ripoti, na ripoti za matokeo ya wanafunzi."
+            action={() => navigate('/login')} cta="Ingia →" 
           />
           <PathCard
             icon="📊" title="Matokeo ya NECTA"
             desc="Nafasi za shule, mikoa, na masomo — kitaifa hadi wilaya."
             action={() => navigate('/necta')} cta="Angalia Matokeo →"
           />
-          {/* <PathCard
-            icon="📝" title="Maswali ya Zamani"
-            desc="Maswali ya NECTA ya miaka iliyopita, kwa kila somo."
-            action={() => navigate('/past-papers')} cta="Tazama Maswali →"
-          /> */}
+         
           <PathCard
             icon="🎓" title="Kikokotoo cha TCU"
             desc="Hesabu pointi zako na uone unastahili programu zipi."
@@ -208,10 +204,10 @@ export default function LandingPage() {
           Kwa Kila Mdau wa Elimu
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <AudienceCard icon="🎒" title="Wanafunzi" desc="Angalia matokeo, pata past papers" />
+          <AudienceCard icon="🎒" title="Wanafunzi" desc="Angalia matokeo, chagua vyuo" />
           <AudienceCard icon="👪" title="Wazazi" desc="Fuatilia matokeo na chagua shule kutokana na data halisi." />
           <AudienceCard icon="👩🏽‍🏫" title="Walimu" desc="Ingiza alama na utengeneze ripoti ndani ya muda mfupi." />
-          <AudienceCard icon="🏫" title="Shule" desc="Simamia masomo, fedha, na ripoti — kwenye mfumo mmoja." />
+          <AudienceCard icon="🏫" title="Shule" desc="Simamia masomo na ripoti za matokeo — kwenye mfumo mmoja." />
         </div>
       </section>
 
