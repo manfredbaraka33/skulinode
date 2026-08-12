@@ -108,14 +108,16 @@ export default function NectaDashboard() {
         ) : kpis ? (
           <>
             <HeadlineStory kpis={kpis} />
-            <RegionalPride level={level} year={year} onSelectRegion={handleRegionSelect} />
-            <GenderStory level={level} year={year} />
-            <HiddenGems level={level} year={year} />
-            <SubjectLeaderboard level={level} year={year} />
             <div id="rankings-section">
               <RankingsTable level={level} year={year} region={region} district={district}
                 onRegionChange={setRegion} onDistrictChange={setDistrict} />
             </div>
+            <SubjectLeaderboard level={level} year={year} />
+            <RegionalPride level={level} year={year} onSelectRegion={handleRegionSelect} />
+            <GenderStory level={level} year={year} />
+            <HiddenGems level={level} year={year} />
+            
+            
           </>
         ) : (
           <div className="text-center py-12 text-slate-400">Matokeo hayajapatikana kwa mwaka huu.</div>
