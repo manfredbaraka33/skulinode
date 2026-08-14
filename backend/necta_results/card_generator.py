@@ -509,15 +509,17 @@ def generate_subject_performance_card(center, session, subjects_with_ranks):
     draw.line([60, y, W - 60, y], fill=LINE, width=2)
     y += 30
 
-    medals = ['🥇', '🥈', '🥉']
+    # medals = ['🥇', '🥈', '🥉']
     for i, s in enumerate(subjects_with_ranks[:10]):
         rank = s.get('national_subject_rank')
-        marker = medals[i] if i < 3 and rank and rank <= 3 else (f'#{rank}' if rank else '')
+        # marker = medals[i] if i < 3 and rank and rank <= 3 else (f'#{rank}' if rank else '')
+        marker = f'#{rank}' if rank else ''
 
         draw.text((60, y), s['subject_name'], font=F_BOLD(24), fill=INK)
         if marker:
             draw.text((60, y + 32), f'{marker} Kitaifa' if not marker.startswith('#') else f'{marker} Kitaifa',
-                      font=F_MED(16), fill=GOLD if i < 3 else SLATE)
+                    #   font=F_MED(16), fill=GOLD if i < 3 else SLATE)
+                      font=F_MED(16), fill=GOLD if rank <= 5 else SLATE)
 
         gpa_text = f"{s['subject_gpa']}"
         gw = _text_w(draw, gpa_text, F_MONO(32))
@@ -529,74 +531,6 @@ def generate_subject_performance_card(center, session, subjects_with_ranks):
 
     _footer(draw, W, H, f'skulinode.co.tz/necta')
     return _png(img)
-
-
-# def generate_trend_card(center_name, trend_points, level):
-#     """
-#     trend_points: [{"year": int, "gpa": float, "national_rank": int|None}, ...]
-#     sorted ascending by year. Draws a simple line trend — lower GPA is
-#     better, so the chart is visually inverted (lower GPA plots higher).
-#     """
-#     W, H = 1080, 700
-#     img = Image.new('RGB', (W, H), PAPER)
-#     draw = ImageDraw.Draw(img)
-#     _header(draw, W, level, 'Mwenendo wa Miaka',img)
-
-#     y = 170
-#     draw.text((60, y), center_name, font=F_DISPLAY(34), fill=NAVY)
-#     y += 70
-
-#     if len(trend_points) < 2:
-#         draw.text((60, y), 'Takwimu za mwaka mmoja tu zinapatikana kwa sasa.',
-#                   font=F_MED(22), fill=SLATE)
-#         _footer(draw, W, H, 'skulinode.co.tz/necta')
-#         return _png(img)
-
-#     gpas = [p['gpa'] for p in trend_points if p['gpa'] is not None]
-#     min_gpa, max_gpa = min(gpas), max(gpas)
-#     gpa_range = max(max_gpa - min_gpa, 0.1)
-
-#     chart_x0, chart_x1 = 100, W - 100
-#     chart_y0, chart_y1 = y + 30, y + 260  # y0 = top (better/lower GPA), y1 = bottom (worse/higher GPA)
-#     n = len(trend_points)
-#     step_x = (chart_x1 - chart_x0) / max(n - 1, 1)
-
-#     points_px = []
-#     for i, p in enumerate(trend_points):
-#         px = chart_x0 + step_x * i
-#         # Inverted: lower GPA -> higher on chart (closer to chart_y0)
-#         frac = (p['gpa'] - min_gpa) / gpa_range if p['gpa'] is not None else 0.5
-#         py = chart_y0 + frac * (chart_y1 - chart_y0)
-#         points_px.append((px, py))
-
-#     # Draw connecting line
-#     for i in range(len(points_px) - 1):
-#         draw.line([points_px[i], points_px[i + 1]], fill=BLUE_MID, width=4)
-
-#     # Draw points + labels
-#     for i, (px, py) in enumerate(points_px):
-#         p = trend_points[i]
-#         draw.ellipse([px - 10, py - 10, px + 10, py + 10], fill=GOLD, outline=NAVY, width=2)
-#         _centered(draw, px, py - 45, str(p['year']), F_BOLD(20), SLATE)
-#         _centered(draw, px, py + 20, f"{p['gpa']}", F_MONO(22), NAVY)
-
-#     y = chart_y1 + 60
-#     draw.line([60, y, W - 60, y], fill=LINE, width=1)
-#     y += 30
-
-#     # Summary arrow: first vs last year
-#     first_gpa, last_gpa = trend_points[0]['gpa'], trend_points[-1]['gpa']
-#     if first_gpa is not None and last_gpa is not None:
-#         improved = last_gpa < first_gpa
-#         arrow = '📈' if improved else ('📉' if last_gpa > first_gpa else '➡️')
-#         color = GREEN if improved else (G_RED if last_gpa > first_gpa else SLATE)
-#         change = round(abs(first_gpa - last_gpa), 2)
-#         verb = 'imeimarika' if improved else ('imeshuka' if last_gpa > first_gpa else 'imesalia sawa')
-#         _centered(draw, W / 2, y, f'{arrow} GPA {verb} kwa {change} tangu {trend_points[0]["year"]}',
-#                   F_BOLD(24), color)
-
-#     _footer(draw, W, H, 'skulinode.co.tz/necta')
-#     return _png(img)
 
 
 def generate_trend_card(center_name, trend_points, level):
