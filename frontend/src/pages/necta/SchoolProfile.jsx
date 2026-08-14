@@ -9,10 +9,38 @@ import { Helmet } from 'react-helmet-async';
 export default function SchoolProfile() {
   const { centerId } = useParams();
   const { year } = useParams();
+  const { level } = useParams();
   const [school, setSchool] = useState(null);
   const [trend, setTrend] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+
+  const [downloadingSubjects, setDownloadingSubjects] = useState(false);
+const [downloadingTrend, setDownloadingTrend] = useState(false);
+
+function downloadSubjectsCard() {
+  setDownloadingSubjects(true);
+  axios.get(`${API}/cards/subjects/${centerId}/?level=${level}&year=${year}`, { responseType: 'blob' })
+    .then(r => {
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement('a');
+      a.href = url; a.download = `${centerId}_masomo.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+    }).finally(() => setDownloadingSubjects(false));
+}
+
+function downloadTrendCard() {
+  setDownloadingTrend(true);
+  axios.get(`${API}/cards/trend/${centerId}/?level=${level}`, { responseType: 'blob' })
+    .then(r => {
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement('a');
+      a.href = url; a.download = `${centerId}_mwenendo.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+    }).finally(() => setDownloadingTrend(false));
+}
 
   const [copied, setCopied] = useState(false);
   function copyLink() {
@@ -23,14 +51,14 @@ export default function SchoolProfile() {
   }
 
   useEffect(() => {
-    axios.get(`${API}/school/${centerId}/?level=ACSEE&year=${year}`).then(r => setSchool(r.data));
-    axios.get(`${API}/trend/school/${centerId}/?level=ACSEE`).then(r => setTrend(r.data));
+    axios.get(`${API}/school/${centerId}/?level=${level}&year=${year}`).then(r => setSchool(r.data));
+    axios.get(`${API}/trend/school/${centerId}/?level=${level}`).then(r => setTrend(r.data));
   }, [centerId]);
 
   async function downloadCard() {
     setDownloading(true);
     try {
-      const r = await axios.get(`${API}/cards/school/${centerId}/?level=ACSEE&year=${year}`, { responseType: 'blob' });
+      const r = await axios.get(`${API}/cards/school/${centerId}/?level=${level}&year=${year}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([r.data]));
       const a = document.createElement('a');
       a.href = url; a.download = `${centerId}_matokeo.png`;
@@ -140,7 +168,7 @@ export default function SchoolProfile() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-5">
+      {/* <div className="bg-white rounded-2xl border border-slate-200 p-5">
         <h3 className="text-sm font-semibold text-slate-700 mb-3">Ufaulu wa Masomo</h3>
         <div className="space-y-2">
           {school.subjects.map(s => (
@@ -161,9 +189,52 @@ export default function SchoolProfile() {
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
+
+
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-slate-700">Ufaulu wa Masomo</h3>
+        <button onClick={downloadSubjectsCard} disabled={downloadingSubjects}
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#1e3a5f] border border-[#1e3a5f]/20 rounded-lg px-3 py-1.5 hover:bg-[#1e3a5f]/5 disabled:opacity-50">
+          <Download size={13}/> {downloadingSubjects ? 'Inapakua...' : 'Pakua Kadi'}
+        </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {school.subjects.map(s => (
+          <div key={s.subject_name} className="border border-slate-100 rounded-xl p-3 hover:border-blue-200 transition">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-slate-800 truncate">{s.subject_name}</div>
+                <div className="text-xs text-slate-400 mt-0.5">
+                  Waliosajili {s.registered} · Waliofanya {s.sat}
+                  {s.dropout_rate ? ` · Kutokuhudhuria ${s.dropout_rate}%` : ''}
+                </div>
+                {s.national_subject_rank && (
+                  <div className="text-xs mt-1">
+                    {s.national_subject_rank <= 3 ? (
+                      <span className="text-amber-600 font-semibold">
+                        {['🥇','🥈','🥉'][s.national_subject_rank - 1]} #{s.national_subject_rank} Kitaifa
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">#{s.national_subject_rank} Kitaifa</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="text-right shrink-0">
+                <div className="font-mono font-bold text-lg text-blue-700">{s.subject_gpa}</div>
+                <div className="text-xs text-slate-400">GPA</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+
+      {/* <div className="bg-white rounded-2xl border border-slate-200 p-5">
         <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
           <TrendingUp size={16}/> Mwenendo wa Miaka
         </h3>
@@ -182,7 +253,52 @@ export default function SchoolProfile() {
             Takwimu za mwaka mmoja tu zinapatikana kwa sasa. Mwenendo utaonekana miaka ijayo inapoongezwa.
           </p>
         )}
+      </div> */}
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+          <TrendingUp size={16}/> Mwenendo wa Miaka
+        </h3>
+        {trend?.points?.length > 1 && (
+          <button onClick={downloadTrendCard} disabled={downloadingTrend}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#1e3a5f] border border-[#1e3a5f]/20 rounded-lg px-3 py-1.5 hover:bg-[#1e3a5f]/5 disabled:opacity-50">
+            <Download size={13}/> {downloadingTrend ? 'Inapakua...' : 'Pakua Kadi'}
+          </button>
+        )}
       </div>
+      {trend?.points?.length > 1 ? (
+        <div className="space-y-2">
+          {trend.points.map((p, i) => {
+            const prev = trend.points[i - 1];
+            const improved = prev && p.gpa < prev.gpa;
+            const worsened = prev && p.gpa > prev.gpa;
+            return (
+              <div key={p.year} className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-slate-700 w-14">{p.year}</span>
+                  {prev && (
+                    <span className={improved ? 'text-green-600' : worsened ? 'text-red-500' : 'text-slate-400'}>
+                      {improved ? '📈' : worsened ? '📉' : '➡️'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <div className="font-mono font-bold text-[#1e3a5f]">GPA {p.gpa}</div>
+                    <div className="text-xs text-slate-400">#{p.national_rank} taifa</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400">
+          Takwimu za mwaka mmoja tu zinapatikana kwa sasa. Mwenendo utaonekana miaka ijayo inapoongezwa.
+        </p>
+      )}
+    </div>
 
       {school.necta_source_url && (
         <a href={school.necta_source_url} target="_blank" rel="noopener noreferrer"

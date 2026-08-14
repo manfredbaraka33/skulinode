@@ -336,7 +336,7 @@ class SchoolSearchView(APIView):
 from django.http import HttpResponse
 from .card_generator import (
     generate_school_card, generate_region_card, generate_gem_card,
-    generate_gender_card, generate_subject_card, generate_compare_card,generate_head_to_head_card
+    generate_gender_card, generate_subject_card, generate_compare_card,generate_head_to_head_card, generate_subject_performance_card, generate_trend_card
 )
 
 
@@ -665,4 +665,61 @@ class HeadToHeadCardView(APIView):
         buf = generate_head_to_head_card(school_a, school_b, session, best_subject_a, best_subject_b)
         resp = HttpResponse(buf.read(), content_type='image/png')
         resp['Content-Disposition'] = f'attachment; filename="h2h_{school_a.center_id}_vs_{school_b.center_id}.png"'
+        return resp
+
+
+
+class SubjectPerformanceCardView(APIView):
+    permission_classes = []
+
+    def get(self, request, center_id):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+            center  = SchoolCenter.objects.get(exam_session=session, center_id=center_id.upper())
+        except (ExamSession.DoesNotExist, SchoolCenter.DoesNotExist):
+            return Response({'error': 'Not found.'}, status=404)
+
+        rank_map = {
+            r.subject_name: r.national_subject_rank
+            for r in SubjectSchoolRanking.objects.filter(exam_session=session, center=center)
+        }
+        subjects = list(center.subjects.filter(subject_gpa__isnull=False).order_by('subject_gpa').values(
+            'subject_name', 'subject_gpa'
+        ))
+        for s in subjects:
+            s['national_subject_rank'] = rank_map.get(s['subject_name'])
+
+        buf = generate_subject_performance_card(center, session, subjects)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = f'attachment; filename="{center.center_id}_masomo.png"'
+        return resp
+
+
+class TrendCardView(APIView):
+    permission_classes = []
+
+    def get(self, request, center_id):
+        level = request.query_params.get('level', 'ACSEE')
+        try:
+            sessions = ExamSession.objects.filter(exam_level=level, is_published=True).order_by('year')
+            points = []
+            center_name = None
+            for s in sessions:
+                try:
+                    c = SchoolCenter.objects.get(exam_session=s, center_id=center_id.upper())
+                    center_name = c.center_name
+                    points.append({'year': s.year, 'gpa': c.center_gpa, 'national_rank': c.national_rank})
+                except SchoolCenter.DoesNotExist:
+                    continue
+        except Exception:
+            return Response({'error': 'Not found.'}, status=404)
+
+        if not center_name:
+            return Response({'error': 'No trend data found for this school.'}, status=404)
+
+        buf = generate_trend_card(center_name, points, level)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = f'attachment; filename="{center_id.upper()}_mwenendo.png"'
         return resp

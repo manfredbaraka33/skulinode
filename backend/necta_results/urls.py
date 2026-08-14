@@ -24,4 +24,6 @@ urlpatterns = [
     path('cards/subject/<str:subject_name>/', api_views.SubjectCardView.as_view()),
     path('cards/compare/',                  api_views.CompareCardView.as_view()),
     path('cards/head-to-head/', api_views.HeadToHeadCardView.as_view()),
+    path('cards/subjects/<str:center_id>/', api_views.SubjectPerformanceCardView.as_view()),
+    path('cards/trend/<str:center_id>/',    api_views.TrendCardView.as_view()),
 ]

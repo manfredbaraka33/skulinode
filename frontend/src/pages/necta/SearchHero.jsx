@@ -46,7 +46,7 @@ export default function SearchHero({ level, year }) {
             {results.map(r => (
               <button
                 key={r.center_id}
-                onClick={() => navigate(`/necta/shule/${r.center_id}/${year}`)}
+                onClick={() => navigate(`/necta/shule/${r.center_id}/${level}/${year}`)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 border-b border-slate-50 last:border-0"
               >
                 <div>

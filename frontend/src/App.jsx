@@ -41,7 +41,7 @@ function App() {
           {/* Public */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/necta" element={<NectaDashboard />} />
-          <Route path="/necta/shule/:centerId/:year" element={<SchoolProfile />} />
+          <Route path="/necta/shule/:centerId/:level/:year" element={<SchoolProfile />} />
           
           <Route path="/tcu" element={<TCUCalculator />} />
           

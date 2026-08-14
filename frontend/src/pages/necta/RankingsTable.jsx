@@ -104,7 +104,7 @@ export default function RankingsTable({ level, year, region, district, onRegionC
               <tr key={r.center_id} className="border-b border-slate-50 hover:bg-blue-50 cursor-pointer">
                 <td className="px-4 py-2 font-bold text-slate-500">#{r.rank}</td>
                 <td className="px-4 py-2 font-medium">
-                  <a href={`/necta/shule/${r.center_id}/${year}`} className="hover:text-blue-600">{r.center_name}</a>
+                  <a href={`/necta/shule/${r.center_id}/${level}/${year}`} className="hover:text-blue-600">{r.center_name}</a>
                 </td>
                 <td className="px-4 py-2 text-slate-500">{r.region}</td>
                 <td className="px-4 py-2 text-slate-500">{r.district}</td>
