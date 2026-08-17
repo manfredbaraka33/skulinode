@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 
 import { NECTA_API as API } from '../config/api';
 import Logo from '../components/Logo';
@@ -9,6 +10,7 @@ import Logo from '../components/Logo';
 export default function LandingPage() {
   const navigate = useNavigate();
   const [headline, setHeadline] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/headlines/?level=ACSEE&year=2026`)
@@ -63,7 +65,7 @@ export default function LandingPage() {
       `}</style>
 
       {/* ── Nav ── */}
-      <nav className="sticky top-0 z-30 bg-[var(--paper)]/90 backdrop-blur border-b border-slate-200">
+      {/* <nav className="sticky top-0 z-30 bg-[var(--paper)]/90 backdrop-blur border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Logo />
@@ -71,15 +73,64 @@ export default function LandingPage() {
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
             <button onClick={() => navigate('/necta')} className="hover:text-[var(--navy)] transition">Matokeo ya NECTA</button>
-            {/* <button onClick={() => navigate('/past-papers')} className="hover:text-[var(--navy)] transition">Maswali ya Zamani</button> */}
             <button onClick={() => navigate('/tcu')} className="hover:text-[var(--navy)] transition">Kikokotoo cha TCU</button>
+            <button onClick={() => navigate('/blog')} className="hover:text-[var(--navy)] transition">Blogu</button>
           </div>
           <button onClick={() => navigate('/login')}
             className="px-4 py-2 rounded-lg bg-[var(--navy)] text-white text-sm font-semibold hover:bg-[var(--navy-deep)] transition">
             Ingia →
           </button>
         </div>
-      </nav>
+      </nav> */}
+
+      <nav className="sticky top-0 z-30 bg-[var(--paper)]/90 backdrop-blur border-b border-slate-200">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+           <div className="flex items-center gap-2">
+            <Logo />
+            <span className="font-display font-semibold text-lg text-[var(--navy)]">SkuliNode</span>
+          </div>
+        </div>
+
+        {/* Desktop links */}
+        <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+          <button onClick={() => navigate('/necta')} className="hover:text-[var(--navy)] transition">Matokeo ya NECTA</button>
+          <button onClick={() => navigate('/tcu')} className="hover:text-[var(--navy)] transition">Kikokotoo cha TCU</button>
+          <button onClick={() => navigate('/blog')} className="hover:text-[var(--navy)] transition">Blogu</button>
+          {/* <button onClick={() => navigate('/past-papers')} className="hover:text-[var(--navy)] transition">Maswali ya Zamani</button> */}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate('/login')}
+            className="px-4 py-2 rounded-lg bg-[var(--navy)] text-white text-sm font-semibold hover:bg-[var(--navy-deep)] transition">
+            Ingia →
+          </button>
+          {/* Mobile hamburger */}
+          <button onClick={() => setMobileMenuOpen(v => !v)}
+            className="md:hidden p-2 rounded-lg text-[var(--navy)] hover:bg-slate-100">
+            {mobileMenuOpen ? <X size={20}/> : <Menu size={20}/>}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1">
+          {[
+            { label: 'Matokeo ya NECTA', to: '/necta' },
+            { label: 'Kikokotoo cha TCU', to: '/tcu' },
+            { label: 'Blogu', to: '/blog' },
+            // { label: 'Maswali ya Zamani', to: '/past-papers' },
+          ].map(item => (
+            <button key={item.to}
+              onClick={() => { navigate(item.to); setMobileMenuOpen(false); }}
+              className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50">
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </nav>
 
       {/* ── Hero ── */}
       <section className="relative overflow-hidden">

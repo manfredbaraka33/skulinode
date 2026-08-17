@@ -168,30 +168,6 @@ function downloadTrendCard() {
         </div>
       </div>
 
-      {/* <div className="bg-white rounded-2xl border border-slate-200 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Ufaulu wa Masomo</h3>
-        <div className="space-y-2">
-          {school.subjects.map(s => (
-            <div key={s.subject_name} className="flex items-center justify-between text-sm py-2 border-b border-slate-50 last:border-0">
-              <div>
-                <div className="text-slate-700 font-medium">{s.subject_name}</div>
-                <div className="text-xs text-slate-400">
-                  Waliosajili {s.registered} · Waliofanya {s.sat}
-                  {s.dropout_rate ? ` · Kutokuhudhuria ${s.dropout_rate}%` : ''}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-mono font-semibold text-blue-700">{s.subject_gpa}</div>
-                {s.national_subject_rank && (
-                  <div className="text-xs text-amber-600">#{s.national_subject_rank} kitaifa</div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div> */}
-
-
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
       <div className="flex items-center justify-between mb-3">
@@ -232,28 +208,6 @@ function downloadTrendCard() {
         ))}
       </div>
     </div>
-
-
-      {/* <div className="bg-white rounded-2xl border border-slate-200 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          <TrendingUp size={16}/> Mwenendo wa Miaka
-        </h3>
-        {trend?.points?.length > 1 ? (
-          <div className="space-y-2">
-            {trend.points.map(p => (
-              <div key={p.year} className="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0">
-                <span className="text-slate-600">{p.year}</span>
-                <span className="font-mono font-semibold text-[#1e3a5f]">GPA {p.gpa}</span>
-                <span className="text-xs text-slate-400">#{p.national_rank} taifa</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-400">
-            Takwimu za mwaka mmoja tu zinapatikana kwa sasa. Mwenendo utaonekana miaka ijayo inapoongezwa.
-          </p>
-        )}
-      </div> */}
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
       <div className="flex items-center justify-between mb-3">

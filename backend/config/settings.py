@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'academy',
     'necta_results',
     'tcu_calculator',
+    'blog'
     
 ]
 

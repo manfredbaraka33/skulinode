@@ -2,6 +2,7 @@
 from django.http import HttpResponse
 from django.views import View
 from .models import SchoolCenter, ExamSession
+from blog.models import BlogPost
 
 
 class SitemapView(View):
@@ -50,4 +51,19 @@ class SitemapView(View):
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{''.join(urls_xml)}
 </urlset>"""
 
+        # inside SitemapView.get(), alongside the existing school-center loop:
+        posts = BlogPost.objects.filter(is_published=True).values_list('slug', flat=True)
+        for slug in posts:
+            urls_xml.append(f"""
+        <url>
+            <loc>{base_url}/blog/{slug}</loc>
+            <changefreq>monthly</changefreq>
+            <priority>0.7</priority>
+        </url>""")
+
         return HttpResponse(xml_content, content_type="application/xml")
+
+
+
+
+

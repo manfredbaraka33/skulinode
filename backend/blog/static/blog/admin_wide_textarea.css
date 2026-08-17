@@ -1,0 +1,7 @@
+.field-body textarea {
+    width: 100%;
+    min-height: 500px;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+}

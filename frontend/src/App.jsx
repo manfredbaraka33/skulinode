@@ -30,6 +30,8 @@ import SchoolProfile from './pages/necta/SchoolProfile';
 import LandingPage from './pages/LandingPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import TCUCalculator from './pages/tcu/TCUCalculator';
+import BlogPost from './pages/blog/BlogPost';
+import BlogList from './pages/blog/BlogList';
 
 
 
@@ -44,6 +46,9 @@ function App() {
           <Route path="/necta/shule/:centerId/:level/:year" element={<SchoolProfile />} />
           
           <Route path="/tcu" element={<TCUCalculator />} />
+
+          <Route path="/blog" element={<BlogList />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
           
           <Route path="/login" element={<Login />} />
           <Route path="/register-school" element={<RegisterSchool />} />

@@ -20,3 +20,7 @@ export const TCU_API = isLocal
   : 'https://skulinode.co.tz/api/tcu';
 
 
+
+  export const BLOG_API = isLocal
+  ? 'http://127.0.0.1:8000/api/blog'
+  : 'https://skulinode.co.tz/api/blog';
