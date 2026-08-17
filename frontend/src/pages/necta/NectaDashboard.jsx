@@ -10,6 +10,7 @@ import HiddenGems from './HiddenGems';
 import RankingsTable from './RankingsTable';
 import CompareModal from './CompareModal';
 import { Users2 } from 'lucide-react';
+import SubjectRankings from './SubjectRankings';
 
 const LEVEL_LABELS = { ACSEE: 'Kidato cha Sita', CSEE: 'Kidato cha Nne', FTNA: 'Kidato cha Pili', PSLE: 'Darasa la Saba' };
 
@@ -114,6 +115,7 @@ export default function NectaDashboard() {
             </div>
             <SubjectLeaderboard level={level} year={year} />
             <RegionalPride level={level} year={year} onSelectRegion={handleRegionSelect} />
+            <SubjectRankings level={level} year={year} />
             <GenderStory level={level} year={year} />
             <HiddenGems level={level} year={year} />
             

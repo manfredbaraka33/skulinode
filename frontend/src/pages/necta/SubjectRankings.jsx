@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 import { NECTA_API as API } from '../../config/api';
 
 export default function SubjectRankings({ level, year, region }) {
   const [subjects, setSubjects] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const params = new URLSearchParams({ level, year });
@@ -17,7 +19,8 @@ export default function SubjectRankings({ level, year, region }) {
       <h3 className="text-sm font-semibold text-slate-700 mb-4">
         Ufaulu wa Masomo {region ? `— ${region}` : '— Taifa'}
       </h3>
-      <table className="w-full text-sm">
+     <div className='max-h-100 overflow-x-auto'>
+       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-100">
             <th className="text-left py-2 text-xs text-slate-500">Somo</th>
@@ -28,13 +31,18 @@ export default function SubjectRankings({ level, year, region }) {
         <tbody>
           {subjects?.map(s => (
             <tr key={s.subject_name} className="border-b border-slate-50">
-              <td className="py-2 font-medium">{s.subject_name}</td>
+              <td className="py-2 font-medium">
+                <button onClick={() => navigate(`/necta/somo/${s.subject_name}/${level}/${year}`)}>
+                  {s.subject_name}
+                </button>
+              </td>
               <td className="py-2 text-center font-mono">{s.weighted_gpa}</td>
               <td className="py-2 text-center">{s.total_sat?.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
       </table>
+     </div>
     </div>
   );
 }

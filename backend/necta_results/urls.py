@@ -26,4 +26,9 @@ urlpatterns = [
     path('cards/head-to-head/', api_views.HeadToHeadCardView.as_view()),
     path('cards/subjects/<str:center_id>/', api_views.SubjectPerformanceCardView.as_view()),
     path('cards/trend/<str:center_id>/',    api_views.TrendCardView.as_view()),
+    path('region-profile/<str:region>/',                        api_views.RegionProfileView.as_view()),
+    path('district-profile/<str:region>/<str:district>/',        api_views.DistrictProfileView.as_view()),
+    path('subject-profile/<str:subject_name>/',                  api_views.SubjectProfileView.as_view()),
+    path('trend/subject/<str:center_id>/<str:subject_name>/',    api_views.SchoolSubjectTrendView.as_view()),
+    path('cards/division/<str:center_id>/', api_views.DivisionGenderCardView.as_view()),
 ]

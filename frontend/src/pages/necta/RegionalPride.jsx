@@ -3,6 +3,7 @@ import axios from 'axios';
 import { NECTA_API as API } from '../../config/api';
 import NectaModal from './NectaModal';
 import { Download, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -12,6 +13,7 @@ export default function RegionalPride({ level, year, onSelectRegion }) {
   const [selected, setSelected] = useState(null);
   const [topSchools, setTopSchools] = useState([]);
   const [downloading, setDownloading] = useState(false);
+  const navigate=useNavigate()
 
   useEffect(() => {
     axios.get(`${API}/regions/?level=${level}&year=${year}`).then(r => setRegions(r.data.results));
@@ -121,6 +123,9 @@ export default function RegionalPride({ level, year, onSelectRegion }) {
               className="flex-1 py-2.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
               Ona Shule Zote
             </button>
+           
+            <button onClick={() => navigate(`/necta/mkoa/${selected.region}/${level}/${year}`)}
+             className="text-xs bg-amber-400 rounded-2xl p-1 text-blue-600 font-semibold mt-2">Ona Wasifu Kamili wa Mkoa →</button>
           </div>
         </NectaModal>
       )}

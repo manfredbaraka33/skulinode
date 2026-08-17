@@ -21,6 +21,7 @@ WHITE      = (255, 255, 255)
 GREEN      = (22, 163, 74)
 PINK       = (219, 39, 119)
 LINE       = (226, 232, 240)
+LIGHT_BG = (240, 246, 255)
 
 DIVISION_COLORS = {
     'I': (22, 163, 74), 'II': (13, 148, 136), 'III': (202, 138, 4),
@@ -601,4 +602,68 @@ def generate_trend_card(center_name, trend_points, level):
                   F_BOLD(24), color)
 
     _footer(draw, W, H, 'skulinode.co.tz/necta')
+    return _png(img)
+
+
+
+def generate_division_gender_card(center, session):
+    """Dedicated card: division breakdown as a full table, gender x total."""
+    W, H = 1080, 900
+    img = Image.new('RGB', (W, H), PAPER)
+    draw = ImageDraw.Draw(img)
+    _header(draw, W, f'{session.exam_level} {session.year}', 'Mgawanyo wa Madaraja',img)
+
+    y = 170
+    draw.text((60, y), center.center_name, font=F_DISPLAY(34), fill=NAVY)
+    y += 60
+
+    # Table headers
+    col_w = [180, 180, 180, 180, 180]
+    headers = ['Daraja', 'Wavulana', 'Wasichana', 'Jumla', '%']
+    x = 60
+    for h, w in zip(headers, col_w):
+        draw.text((x, y), h, font=F_BOLD(20), fill=WHITE)
+        x += w
+    draw.rectangle([60, y - 8, W - 60, y + 32], fill=NAVY)
+    x = 60
+    for h, w in zip(headers, col_w):
+        draw.text((x + 10, y), h, font=F_BOLD(20), fill=WHITE)
+        x += w
+    y += 50
+
+    divisions = [
+        ('I', center.div_1_male, center.div_1_female, center.div_1_total),
+        ('II', center.div_2_male, center.div_2_female, center.div_2_total),
+        ('III', center.div_3_male, center.div_3_female, center.div_3_total),
+        ('IV', center.div_4_male, center.div_4_female, center.div_4_total),
+        ('0', center.div_0_male, center.div_0_female, center.div_0_total),
+    ]
+    graded = sum(d[3] for d in divisions)
+
+    for i, (label, m, f, t) in enumerate(divisions):
+        row_bg = NAVY_DEEP if i % 2 == 0 else WHITE
+        pct = round(t / graded * 100, 1) if graded else 0
+        draw.rectangle([60, y - 6, W - 60, y + 36], fill=row_bg)
+        x = 60
+        draw.text((x + 10, y), f'Div {label}', font=F_BOLD(20), fill=DIVISION_COLORS.get(label, INK))
+        x += col_w[0]
+        draw.text((x + 10, y), str(m), font=F_MONO(20), fill=BLUE_MID)
+        x += col_w[1]
+        draw.text((x + 10, y), str(f), font=F_MONO(20), fill=PINK)
+        x += col_w[2]
+        draw.text((x + 10, y), str(t), font=F_MONO(20), fill=NAVY)
+        x += col_w[3]
+        draw.text((x + 10, y), f'{pct}%', font=F_MED(20), fill=SLATE)
+        y += 44
+
+    y += 20
+    draw.rectangle([60, y, W - 60, y + 40], fill=LIGHT_BG)
+    draw.text((70, y + 8), 'JUMLA', font=F_BOLD(20), fill=NAVY)
+    tot_m = sum(d[1] for d in divisions)
+    tot_f = sum(d[2] for d in divisions)
+    draw.text((250, y + 8), str(tot_m), font=F_MONO(20), fill=BLUE_MID)
+    draw.text((430, y + 8), str(tot_f), font=F_MONO(20), fill=PINK)
+    draw.text((610, y + 8), str(graded), font=F_MONO(20), fill=NAVY)
+
+    _footer(draw, W, H, f'skulinode.co.tz/necta')
     return _png(img)

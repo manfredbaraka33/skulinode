@@ -14,9 +14,10 @@ export default function SchoolProfile() {
   const [trend, setTrend] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
-
+  const [downloadingDivision, setDownloadingDivision] = useState(false);
+  const [subjectTrendModal, setSubjectTrendModal] = useState(null);
   const [downloadingSubjects, setDownloadingSubjects] = useState(false);
-const [downloadingTrend, setDownloadingTrend] = useState(false);
+  const [downloadingTrend, setDownloadingTrend] = useState(false);
 
 function downloadSubjectsCard() {
   setDownloadingSubjects(true);
@@ -48,6 +49,18 @@ function downloadTrendCard() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  function downloadDivisionCard() {
+    setDownloadingDivision(true);
+    axios.get(`${API}/cards/division/${centerId}/?level=${level}&year=${year}`, { responseType: 'blob' })
+      .then(r => {
+        const url = window.URL.createObjectURL(new Blob([r.data]));
+        const a = document.createElement('a');
+        a.href = url; a.download = `${centerId}_madaraja.png`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+      }).finally(() => setDownloadingDivision(false));
   }
 
   useEffect(() => {
@@ -142,7 +155,13 @@ function downloadTrendCard() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
-        <h3 className="text-sm font-semibold text-slate-700 mb-3">Mgawanyo wa Madaraja</h3>
+        <div className='flex justify-between mb-3'>
+          <h3 className="text-sm font-semibold text-slate-700 mb-3">Mgawanyo wa Madaraja</h3>
+        <button onClick={downloadDivisionCard} disabled={downloadingDivision}
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#1e3a5f] border border-[#1e3a5f]/20 rounded-lg px-3 py-1.5 hover:bg-[#1e3a5f]/5 disabled:opacity-50">
+          <Download size={13}/> {downloadingDivision ? 'Inapakua...' : 'Pakua Kadi'}
+        </button>
+        </div>
         <div className="grid grid-cols-5 gap-2 text-center mb-2">
           {['I','II','III','IV','0'].map(div => (
             <div key={div} className="bg-slate-50 rounded-lg py-2">
@@ -178,8 +197,10 @@ function downloadTrendCard() {
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {school.subjects.map(s => (
-          <div key={s.subject_name} className="border border-slate-100 rounded-xl p-3 hover:border-blue-200 transition">
+        
+          {school.subjects.map(s => (
+          <button key={s.subject_name} onClick={() => setSubjectTrendModal(s.subject_name)}
+          className="w-full flex items-center justify-between text-sm py-2 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded transition">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-800 truncate">{s.subject_name}</div>
@@ -204,7 +225,7 @@ function downloadTrendCard() {
                 <div className="text-xs text-slate-400">GPA</div>
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -264,6 +285,10 @@ function downloadTrendCard() {
       {showCompare && (
         <CompareModal initialCenterId={centerId} level="ACSEE" year="2026" onClose={() => setShowCompare(false)} />
       )}
+      {subjectTrendModal && (
+        <SubjectTrendModal centerId={centerId} subjectName={subjectTrendModal} level={level}
+          onClose={() => setSubjectTrendModal(null)} />
+      )}
     </div>
   );
 }
@@ -273,6 +298,44 @@ function Stat({ label, value }) {
     <div>
       <div className="font-bold text-slate-800">{value ?? '—'}</div>
       <div className="text-xs text-slate-400 mt-0.5">{label}</div>
+    </div>
+  );
+}
+
+
+
+
+
+
+function SubjectTrendModal({ centerId, subjectName, level, onClose }) {
+  const [points, setPoints] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API}/trend/subject/${centerId}/${subjectName}/?level=${level}`)
+      .then(r => setPoints(r.data.points));
+  }, [centerId, subjectName, level]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5">
+        <h3 className="font-semibold text-[#1e3a5f] mb-1">{subjectName}</h3>
+        <p className="text-xs text-slate-400 mb-4">Mwenendo wa GPA kwa miaka</p>
+        {!points ? (
+          <div className="text-center py-6 text-slate-400 text-sm">Inapakia...</div>
+        ) : points.length < 2 ? (
+          <p className="text-sm text-slate-400">Takwimu za mwaka mmoja tu zinapatikana.</p>
+        ) : (
+          <div className="space-y-2">
+            {points.map(p => (
+              <div key={p.year} className="flex justify-between text-sm py-1.5 border-b border-slate-50 last:border-0">
+                <span>{p.year}</span>
+                <span className="font-mono font-semibold text-blue-700">{p.subject_gpa ?? '—'}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={onClose} className="w-full mt-4 py-2 border border-slate-200 rounded-lg text-sm">Funga</button>
+      </div>
     </div>
   );
 }

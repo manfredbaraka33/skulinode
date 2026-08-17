@@ -32,6 +32,9 @@ import ComingSoonPage from './pages/ComingSoonPage';
 import TCUCalculator from './pages/tcu/TCUCalculator';
 import BlogPost from './pages/blog/BlogPost';
 import BlogList from './pages/blog/BlogList';
+import RegionProfile from './pages/necta/RegionProfile';
+import DistrictProfile from './pages/necta/DistrictProfile';
+import SubjectProfile from './pages/necta/SubjectProfile';
 
 
 
@@ -49,6 +52,11 @@ function App() {
 
           <Route path="/blog" element={<BlogList />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
+
+  
+          <Route path="/necta/mkoa/:region/:level/:year" element={<RegionProfile />} />
+          <Route path="/necta/wilaya/:region/:district/:level/:year" element={<DistrictProfile />} />
+          <Route path="/necta/somo/:subjectName/:level/:year" element={<SubjectProfile />} />
           
           <Route path="/login" element={<Login />} />
           <Route path="/register-school" element={<RegisterSchool />} />

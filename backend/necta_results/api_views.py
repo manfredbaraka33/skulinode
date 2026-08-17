@@ -335,7 +335,7 @@ class SchoolSearchView(APIView):
 
 from django.http import HttpResponse
 from .card_generator import (
-    generate_school_card, generate_region_card, generate_gem_card,
+    generate_division_gender_card, generate_school_card, generate_region_card, generate_gem_card,
     generate_gender_card, generate_subject_card, generate_compare_card,generate_head_to_head_card, generate_subject_performance_card, generate_trend_card
 )
 
@@ -722,4 +722,235 @@ class TrendCardView(APIView):
         buf = generate_trend_card(center_name, points, level)
         resp = HttpResponse(buf.read(), content_type='image/png')
         resp['Content-Disposition'] = f'attachment; filename="{center_id.upper()}_mwenendo.png"'
+        return resp
+
+
+
+class RegionProfileView(APIView):
+    """GET /api/necta/region-profile/<region>/?level=&year="""
+    permission_classes = []
+
+    def get(self, request, region):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+            summary = RegionalSummary.objects.get(exam_session=session, region=region.upper())
+        except (ExamSession.DoesNotExist, RegionalSummary.DoesNotExist):
+            return Response({'error': 'Not found.'}, status=404)
+
+        top_schools = list(SchoolCenter.objects.filter(
+            exam_session=session, region=region.upper(), is_rankable=True
+        ).order_by('center_gpa').values(
+            'center_id', 'center_name', 'center_gpa', 'national_rank', 'pass_rate'
+        )[:15])
+
+        subject_breakdown = list(RegionalSubjectStat.objects.filter(
+            exam_session=session, region=region.upper()
+        ).order_by('regional_rank').values('subject_name', 'weighted_gpa', 'total_sat', 'regional_rank'))
+
+        districts = list(DistrictSummary.objects.filter(
+            exam_session=session, region=region.upper()
+        ).order_by('national_rank').values('district', 'weighted_gpa', 'pass_rate', 'school_count'))
+
+        # Gender aggregate for this region
+        centers = SchoolCenter.objects.filter(exam_session=session, region=region.upper(), is_rankable=True)
+        sat_m = sum(c.sat_male for c in centers)
+        sat_f = sum(c.sat_female for c in centers)
+        pass_m = sum(c.pass_male for c in centers)
+        pass_f = sum(c.pass_female for c in centers)
+        gender = {
+            'pass_rate_male':   round(pass_m / sat_m * 100, 2) if sat_m else None,
+            'pass_rate_female': round(pass_f / sat_f * 100, 2) if sat_f else None,
+        }
+
+        # Trend across other published years, same level
+        trend = []
+        other_sessions = ExamSession.objects.filter(exam_level=level, is_published=True).order_by('year')
+        for s in other_sessions:
+            try:
+                rs = RegionalSummary.objects.get(exam_session=s, region=region.upper())
+                trend.append({'year': s.year, 'weighted_gpa': rs.weighted_gpa, 'national_rank': rs.national_rank})
+            except RegionalSummary.DoesNotExist:
+                continue
+
+        return Response({
+            'region': summary.region, 'level': level, 'year': int(year),
+            'national_rank': summary.national_rank, 'weighted_gpa': summary.weighted_gpa,
+            'pass_rate': summary.pass_rate, 'school_count': summary.school_count,
+            'div1_count': summary.div1_count,
+            'top_schools': top_schools,
+            'subject_breakdown': subject_breakdown,
+            'districts': districts,
+            'gender': gender,
+            'trend': trend,
+        })
+
+
+class DistrictProfileView(APIView):
+    """GET /api/necta/district-profile/<region>/<district>/?level=&year="""
+    permission_classes = []
+
+    def get(self, request, region, district):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+            summary = DistrictSummary.objects.get(
+                exam_session=session, region=region.upper(), district=district.upper()
+            )
+        except (ExamSession.DoesNotExist, DistrictSummary.DoesNotExist):
+            return Response({'error': 'Not found — district data may not be available for this session.'}, status=404)
+
+        top_schools = list(SchoolCenter.objects.filter(
+            exam_session=session, region=region.upper(), district=district.upper(), is_rankable=True
+        ).order_by('center_gpa').values(
+            'center_id', 'center_name', 'center_gpa', 'national_rank', 'pass_rate'
+        ))
+
+        centers = SchoolCenter.objects.filter(
+            exam_session=session, region=region.upper(), district=district.upper(), is_rankable=True
+        )
+        sat_m = sum(c.sat_male for c in centers)
+        sat_f = sum(c.sat_female for c in centers)
+        pass_m = sum(c.pass_male for c in centers)
+        pass_f = sum(c.pass_female for c in centers)
+        gender = {
+            'pass_rate_male':   round(pass_m / sat_m * 100, 2) if sat_m else None,
+            'pass_rate_female': round(pass_f / sat_f * 100, 2) if sat_f else None,
+        }
+
+        trend = []
+        other_sessions = ExamSession.objects.filter(exam_level=level, is_published=True).order_by('year')
+        for s in other_sessions:
+            try:
+                ds = DistrictSummary.objects.get(exam_session=s, region=region.upper(), district=district.upper())
+                trend.append({'year': s.year, 'weighted_gpa': ds.weighted_gpa, 'national_rank': ds.national_rank})
+            except DistrictSummary.DoesNotExist:
+                continue
+
+        return Response({
+            'region': summary.region, 'district': summary.district, 'level': level, 'year': int(year),
+            'national_rank': summary.national_rank, 'weighted_gpa': summary.weighted_gpa,
+            'pass_rate': summary.pass_rate, 'school_count': summary.school_count,
+            'div1_count': summary.div1_count,
+            'top_schools': top_schools,
+            'gender': gender,
+            'trend': trend,
+        })
+
+
+class SubjectProfileView(APIView):
+    """
+    GET /api/necta/subject-profile/<subject_name>/?level=&year=&region=
+    National scope by default; pass ?region= to scope to a region instead.
+    """
+    permission_classes = []
+
+    def get(self, request, subject_name):
+        level  = request.query_params.get('level', 'ACSEE')
+        year   = request.query_params.get('year')
+        region = request.query_params.get('region')
+        subject_name = subject_name.upper()
+
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+        except ExamSession.DoesNotExist:
+            return Response({'error': 'Session not found.'}, status=404)
+
+        if region:
+            try:
+                stat = RegionalSubjectStat.objects.get(exam_session=session, region=region.upper(), subject_name=subject_name)
+            except RegionalSubjectStat.DoesNotExist:
+                return Response({'error': 'No data for this subject in this region.'}, status=404)
+            scope_data = {
+                'scope': 'regional', 'region': region.upper(),
+                'weighted_gpa': stat.weighted_gpa, 'total_sat': stat.total_sat, 'rank': stat.regional_rank,
+            }
+            top_qs = SubjectSchoolRanking.objects.filter(
+                exam_session=session, subject_name=subject_name, region=region.upper()
+            ).order_by('regional_subject_rank')
+        else:
+            try:
+                stat = NationalSubjectStat.objects.get(exam_session=session, subject_name=subject_name)
+            except NationalSubjectStat.DoesNotExist:
+                return Response({'error': 'Subject not found.'}, status=404)
+            scope_data = {
+                'scope': 'national', 'region': None,
+                'weighted_gpa': stat.weighted_gpa, 'total_sat': stat.total_sat, 'rank': stat.national_rank,
+                'avg_dropout_rate': stat.avg_dropout_rate, 'centers_offering': stat.centers_offering,
+            }
+            top_qs = SubjectSchoolRanking.objects.filter(
+                exam_session=session, subject_name=subject_name
+            ).order_by('national_subject_rank')
+
+        top_schools = [{
+            'center_id': c.raw_center_id,
+            'center_name': c.center.center_name if c.center else c.center_id,
+            'region': c.region, 'subject_gpa': c.subject_gpa,
+            'rank': c.regional_subject_rank if region else c.national_subject_rank,
+        } for c in top_qs.select_related('center')[:15]]
+
+        regional_breakdown = []
+        if not region:
+            regional_breakdown = list(RegionalSubjectStat.objects.filter(
+                exam_session=session, subject_name=subject_name
+            ).order_by('weighted_gpa').values('region', 'weighted_gpa', 'total_sat'))
+
+        trend = []
+        other_sessions = ExamSession.objects.filter(exam_level=level, is_published=True).order_by('year')
+        for s in other_sessions:
+            try:
+                nstat = NationalSubjectStat.objects.get(exam_session=s, subject_name=subject_name)
+                trend.append({'year': s.year, 'weighted_gpa': nstat.weighted_gpa, 'national_rank': nstat.national_rank})
+            except NationalSubjectStat.DoesNotExist:
+                continue
+
+        return Response({
+            'subject_name': subject_name, 'level': level, 'year': int(year),
+            **scope_data,
+            'top_schools': top_schools,
+            'regional_breakdown': regional_breakdown,
+            'trend': trend,
+        })
+
+
+class SchoolSubjectTrendView(APIView):
+    """GET /api/necta/trend/subject/<center_id>/<subject_name>/?level="""
+    permission_classes = []
+
+    def get(self, request, center_id, subject_name):
+        level = request.query_params.get('level', 'ACSEE')
+        subject_name = subject_name.upper()
+
+        sessions = ExamSession.objects.filter(exam_level=level, is_published=True).order_by('year')
+        points = []
+        for s in sessions:
+            try:
+                center = SchoolCenter.objects.get(exam_session=s, center_id=center_id.upper())
+                result = center.subjects.get(subject_name=subject_name)
+                points.append({'year': s.year, 'subject_gpa': result.subject_gpa})
+            except (SchoolCenter.DoesNotExist, Exception):
+                continue
+
+        return Response({'center_id': center_id.upper(), 'subject_name': subject_name, 'points': points})
+
+
+
+
+
+class DivisionGenderCardView(APIView):
+    permission_classes = []
+
+    def get(self, request, center_id):
+        level = request.query_params.get('level', 'ACSEE')
+        year  = request.query_params.get('year')
+        try:
+            session = ExamSession.objects.get(exam_level=level, year=year, is_published=True)
+            center  = SchoolCenter.objects.get(exam_session=session, center_id=center_id.upper())
+        except (ExamSession.DoesNotExist, SchoolCenter.DoesNotExist):
+            return Response({'error': 'Not found.'}, status=404)
+        buf = generate_division_gender_card(center, session)
+        resp = HttpResponse(buf.read(), content_type='image/png')
+        resp['Content-Disposition'] = f'attachment; filename="{center.center_id}_madaraja.png"'
         return resp

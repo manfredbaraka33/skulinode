@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { NECTA_API as API } from '../../config/api';
 import { Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const SUBJECTS = [
   'GENERAL STUDIES', 'HISTORY', 'GEOGRAPHY', 'ENGLISH LANGUAGE', 'KISWAHILI',
@@ -14,6 +15,7 @@ export default function SubjectLeaderboard({ level, year }) {
   const [subject, setSubject] = useState('BIOLOGY');
   const [rows, setRows] = useState([]);
   const [downloading, setDownloading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     axios.get(`${API}/subject-leaderboard/?level=${level}&year=${year}&subject=${subject}&page_size=10`)
@@ -41,6 +43,8 @@ export default function SubjectLeaderboard({ level, year }) {
             className="text-sm border border-slate-200 rounded-lg px-3 py-1.5">
             {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
+          <button onClick={() => navigate(`/necta/somo/${subject}/${level}/${year}`)}
+         className="text-xs text-blue-600 font-semibold">Ona Wasifu Kamili wa Somo →</button>
           <button onClick={downloadCard} disabled={downloading || rows.length === 0}
             className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50">
             <Download size={15}/>
@@ -54,6 +58,7 @@ export default function SubjectLeaderboard({ level, year }) {
               <span className="w-7 text-center">{MEDALS[i] ?? `#${r.rank}`}</span>
               <div>
                 <div className="text-sm font-medium text-slate-800">{r.center_name}</div>
+                
                 <div className="text-xs text-slate-400">{r.region}</div>
               </div>
             </div>
