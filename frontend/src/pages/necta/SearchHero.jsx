@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Search } from 'lucide-react';
+import { Search,ArrowLeft } from 'lucide-react';
 
 import { NECTA_API as API } from '../../config/api';
 
@@ -23,7 +23,13 @@ export default function SearchHero({ level, year }) {
   }, [query, level, year]);
 
   return (
-    <div className="bg-gradient-to-br from-blue-800 to-blue-600 px-4 py-14 text-center relative">
+    <div className="bg-gradient-to-br from-[#1e3a5f] to-[#142a44]  px-4 py-14 text-center relative">
+      <center>
+          <button onClick={() => navigate('/')}
+          className="flex items-center gap-1.5 text-sm text-slate-200 hover:text-[#b3c6de] mb-6">
+          <ArrowLeft size={15}/> Rudi Nyumbani
+        </button>
+         </center>
       <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
         Matokeo ya {level} {year}
       </h1>

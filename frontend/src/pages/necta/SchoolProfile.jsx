@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { NECTA_API as API } from '../../config/api';
-import { Download, ExternalLink, TrendingUp, Users2,Link2 } from 'lucide-react';
+import { Download, ExternalLink, TrendingUp, Users2,Link2,ArrowLeft } from 'lucide-react';
 import CompareModal from './CompareModal';
 import { Helmet } from 'react-helmet-async';
 
@@ -18,6 +18,7 @@ export default function SchoolProfile() {
   const [subjectTrendModal, setSubjectTrendModal] = useState(null);
   const [downloadingSubjects, setDownloadingSubjects] = useState(false);
   const [downloadingTrend, setDownloadingTrend] = useState(false);
+  const navigate = useNavigate();
 
 function downloadSubjectsCard() {
   setDownloadingSubjects(true);
@@ -92,6 +93,12 @@ function downloadTrendCard() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <center>
+          <button onClick={() => navigate('/necta')}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#093a77] mb-6">
+          <ArrowLeft size={15}/> Rudi kwenye dashibodi
+        </button>
+         </center>
       <div className="bg-gradient-to-br from-[#1e3a5f] to-[#142a44] rounded-2xl p-6 text-white text-center">
         <h1 style={{ fontFamily: "'Fraunces', serif" }} className="text-xl font-semibold">{school.center_name}</h1>
         <p className="text-blue-100 text-sm mt-1">{school.region}{school.district ? ` · ${school.district}` : ''}</p>

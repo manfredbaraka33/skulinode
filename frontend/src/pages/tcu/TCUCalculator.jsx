@@ -3,7 +3,9 @@ import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
 import TCUInsights from './TCUInsights';
 import TCUProgrammeCompareModal from './TCUProgrammeCompareModal';
-import { FileDown, Users2 } from 'lucide-react';
+import { FileDown, Users2,ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
 
 const API = (() => {
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -62,6 +64,8 @@ export default function TCUCalculator() {
   const [showInsights, setShowInsights] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     axios.get(`${API}/cycles/`).then(r => {
       setCycles(r.data);
@@ -111,7 +115,14 @@ export default function TCUCalculator() {
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }} className="min-h-screen bg-[#faf8f3]">
+      
       <div className="bg-gradient-to-br from-[#1e3a5f] to-[#142a44] px-4 py-12 text-center">
+         <center>
+          <button onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-sm text-slate-200 hover:text-[#b9cee7] mb-6">
+          <ArrowLeft size={15}/> Rudi Nyumbani
+        </button>
+         </center>
         <h1 style={{ fontFamily: "'Fraunces', serif" }} className="text-3xl font-semibold text-white mb-2">
           Kikokotoo cha TCU
         </h1>

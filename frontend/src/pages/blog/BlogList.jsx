@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { BLOG_API as API } from '../../config/api';
-import { Search } from 'lucide-react';
+import { Search, ArrowLeft} from 'lucide-react';
 
 export default function BlogList() {
   const navigate = useNavigate();
@@ -26,6 +26,12 @@ export default function BlogList() {
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }} className="min-h-screen bg-[#faf8f3]">
       <div className="bg-gradient-to-br from-[#1e3a5f] to-[#142a44] px-4 py-12 text-center">
+         <center>
+          <button onClick={() => navigate('/')}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#b3c6de] mb-6">
+          <ArrowLeft size={15}/> Rudi Nyumbani
+        </button>
+         </center>
         <h1 style={{ fontFamily: "'Fraunces', serif" }} className="text-3xl font-semibold text-white mb-2">
           Blogu ya SkuliNode
         </h1>
@@ -34,6 +40,7 @@ export default function BlogList() {
 
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="flex flex-wrap gap-2 mb-6">
+         
           <button onClick={() => { setCategory(''); setPage(1); }}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
               !category ? 'bg-[#1e3a5f] text-white' : 'bg-white border border-slate-200 text-slate-600'

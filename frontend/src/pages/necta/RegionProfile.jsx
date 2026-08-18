@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { NECTA_API as API } from '../../config/api';
+import { ArrowLeft } from 'lucide-react';
 
 export default function RegionProfile() {
   const { region, level, year } = useParams();
@@ -18,6 +19,12 @@ export default function RegionProfile() {
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }} className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+       <center>
+          <button onClick={() => navigate('/necta')}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#093a77] mb-6">
+          <ArrowLeft size={15}/> Rudi kwenye dashibodi
+        </button>
+         </center>
       <div className="bg-gradient-to-br from-[#1e3a5f] to-[#142a44] rounded-2xl p-6 text-white text-center">
         <h1 style={{ fontFamily: "'Fraunces', serif" }} className="text-2xl font-semibold">{data.region}</h1>
         <p className="text-blue-100 text-sm mt-1">{data.level} {data.year}</p>

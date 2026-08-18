@@ -9,7 +9,7 @@ import SubjectLeaderboard from './SubjectLeaderboard';
 import HiddenGems from './HiddenGems';
 import RankingsTable from './RankingsTable';
 import CompareModal from './CompareModal';
-import { Users2 } from 'lucide-react';
+import { Users2,ArrowLeft } from 'lucide-react';
 import SubjectRankings from './SubjectRankings';
 
 const LEVEL_LABELS = { ACSEE: 'Kidato cha Sita', CSEE: 'Kidato cha Nne', FTNA: 'Kidato cha Pili', PSLE: 'Darasa la Saba' };
@@ -66,6 +66,7 @@ export default function NectaDashboard() {
 
   return (
     <div className="bg-slate-50 min-h-screen">
+      
       <SearchHero level={level} year={year} />
 
       {/* Show controls if there are multiple sessions OR multiple levels/years */}
