@@ -68,6 +68,8 @@ from academy.circular_views import CircularListCreateView, CircularDetailView
 
 from academy.pdf_views import CircularPDFView
 
+from academy.sms_admin_views import SMSLogListView, SMSLogResendView, SMSLogBulkResendView
+
 urlpatterns = [
     # Class levels & streams (raw)
     path('class-levels/',               ClassLevelListCreateView.as_view(),               name='class_level_list'),
@@ -170,6 +172,11 @@ urlpatterns = [
     path('circulars/',            CircularListCreateView.as_view(), name='circular_list'),
     path('circulars/<int:pk>/',   CircularDetailView.as_view(),     name='circular_detail'),
     path('circulars/<int:pk>/pdf/', CircularPDFView.as_view(),      name='circular_pdf'),
+
+
+    path('sms-logs/',                    SMSLogListView.as_view(),        name='sms_log_list'),
+    path('sms-logs/<int:pk>/resend/',    SMSLogResendView.as_view(),      name='sms_log_resend'),
+    path('sms-logs/bulk-resend/',        SMSLogBulkResendView.as_view(),  name='sms_log_bulk_resend'),
 ]
 
 

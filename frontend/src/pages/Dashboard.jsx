@@ -167,6 +167,8 @@ export default function Dashboard() {
               <SidebarLink to={`/${slug}/settings`}        icon={Settings}          label="School Settings"  onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/grade-config`}    icon={SlidersHorizontal} label="Grade Ranges"     onClick={onClose} collapsed={isCollapsed} />
               <SidebarLink to={`/${slug}/circulars`}    icon={FileIcon}          label="Circulars"     onClick={onClose} collapsed={isCollapsed} />
+
+              <SidebarLink to={`/${slug}/sms-logs`} icon={MessageSquare} label="SMS" onClick={onClose} collapsed={isCollapsed} />
             </>
           )}
 

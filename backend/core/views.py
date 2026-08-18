@@ -73,14 +73,38 @@ class SchoolListView(ListAPIView):
     queryset = School.objects.filter(is_active=True)
 
 
+# class RegisterSchoolView(APIView):
+#     """
+#     Genesis endpoint — registers a new school tenant and its first admin user
+#     in a single atomic operation. Publicly accessible (no auth required).
+
+#     POST /api/v1/auth/register-school/
+#     """
+
+#     permission_classes = [AllowAny]
+
+#     def post(self, request, *args, **kwargs):
+#         serializer = SchoolRegistrationSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         result = serializer.save()
+#         school = result['school']
+#         admin = result['admin']
+
+#         return Response(
+#             {
+#                 'message': 'School registered successfully. Your account is pending admin verification.',
+#                 'school_id': school.id,
+#                 'school_name': school.name,
+#                 'admin_id': admin.id,
+#                 'admin_email': admin.email,
+#                 'admin_username': admin.username,
+#             },
+#             status=status.HTTP_201_CREATED,
+#         )
+
+
+
 class RegisterSchoolView(APIView):
-    """
-    Genesis endpoint — registers a new school tenant and its first admin user
-    in a single atomic operation. Publicly accessible (no auth required).
-
-    POST /api/v1/auth/register-school/
-    """
-
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -89,6 +113,8 @@ class RegisterSchoolView(APIView):
         result = serializer.save()
         school = result['school']
         admin = result['admin']
+
+        self._notify_platform_owner(school, admin)
 
         return Response(
             {
@@ -101,6 +127,34 @@ class RegisterSchoolView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+    def _notify_platform_owner(self, school, admin):
+        """
+        Alerts the SkuliNode platform owner (not the school itself) that a
+        new school has registered and is waiting for is_verified approval.
+        Uses send_sms directly with school=None, since this is a
+        platform-level notification, not tied to any school's own SMSLog.
+        Wrapped so a notification failure never blocks registration.
+        """
+        from django.conf import settings
+        from academy.sms import send_sms
+
+        owner_phone = '255752303770'
+        if not owner_phone:
+            return
+
+        message = (
+            f"SkuliNode: Shule mpya imesajili — {school.name}. "
+            f"Admin: {admin.get_full_name() or admin.username} ({admin.email}). "
+            f"Inasubiri uthibitisho (is_verified)."
+        )
+        try:
+            send_sms(owner_phone, message, school=None)
+        except Exception:
+            # Never let a notification failure break school registration
+            import logging
+            logging.getLogger(__name__).exception("Failed to notify platform owner of new school registration")
+
 
 
 class CheckSchoolVerificationView(APIView):

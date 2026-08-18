@@ -35,6 +35,7 @@ import BlogList from './pages/blog/BlogList';
 import RegionProfile from './pages/necta/RegionProfile';
 import DistrictProfile from './pages/necta/DistrictProfile';
 import SubjectProfile from './pages/necta/SubjectProfile';
+import SMSTrackingPage from './pages/SMSTrackingPage';
 
 
 
@@ -89,6 +90,7 @@ function App() {
             <Route path="class-masters" element={<ProtectedRoute allowedRoles={['ADMIN']}><ClassMastersPage /></ProtectedRoute>} />
             <Route path="circulars" element={<ProtectedRoute allowedRoles={['ADMIN']}><TermCircularPage /></ProtectedRoute>} />
             <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="sms-logs" element={<ProtectedRoute allowedRoles={['ADMIN']}><SMSTrackingPage /></ProtectedRoute>} />
           </Route>
 
           {/* <Route path="/" element={<Navigate to="/login" replace />} /> */}

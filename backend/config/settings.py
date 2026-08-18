@@ -188,4 +188,5 @@ SMS_DRY_RUN = config('SMS_DRY_RUN', default=True, cast=bool)
 NEXTSMS_USERNAME = config('NEXTSMS_USERNAME', default='')
 NEXTSMS_PASSWORD = config('NEXTSMS_PASSWORD', default='')
 NEXTSMS_SENDER_ID = config('NEXTSMS_SENDER_ID', default='')
-
+# import os
+# PLATFORM_OWNER_PHONE = os.environ.get('PLATFORM_OWNER_PHONE', '0752303770')
