@@ -63,7 +63,19 @@ export default function BlogPost() {
           <img src={post.cover_image} alt={post.title} className="w-full rounded-2xl mb-8"/>
         )}
 
-        <article className="prose prose-slate max-w-none prose-headings:font-['Fraunces'] prose-headings:text-[#1e3a5f] prose-a:text-blue-600 prose-img:rounded-xl">
+        <article className="prose prose-slate max-w-none
+          prose-headings:font-['Fraunces'] prose-headings:text-[#1e3a5f] prose-headings:font-semibold
+          prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-3
+          prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-2
+          prose-p:text-slate-700 prose-p:leading-relaxed prose-p:my-4
+          prose-a:text-blue-600 prose-a:underline prose-a:font-medium hover:prose-a:text-blue-800
+          prose-strong:text-slate-900 prose-strong:font-bold
+          prose-em:italic
+          prose-table:border prose-table:border-slate-200
+          prose-th:bg-slate-50 prose-th:font-semibold prose-th:text-slate-700 prose-th:px-3 prose-th:py-2
+          prose-td:px-3 prose-td:py-2 prose-td:border-t prose-td:border-slate-100
+          prose-blockquote:border-l-4 prose-blockquote:border-blue-300 prose-blockquote:text-slate-600 prose-blockquote:italic
+          prose-img:rounded-xl">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.body}</ReactMarkdown>
         </article>
       </div>
