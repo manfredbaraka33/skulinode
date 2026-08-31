@@ -387,25 +387,25 @@ class SMSLog(TenantModel):
 
 SYSTEM_COMMENT_TEMPLATES = {
     'class_teacher': [
-        {'min': 75, 'max': 100, 'text': "Hongera {name}! Umefanya vizuri sana muhula huu. Endelea na juhudi katika {best_subject} na pia uzingatie {weak_subject}."},
-        {'min': 65, 'max': 74,  'text': "{name} umefanya vizuri. Unaweza kufikia daraja la juu zaidi. Ongeza bidii hasa katika {weak_subject}."},
-        {'min': 50, 'max': 64,  'text': "{name} unaweza zaidi ya hivi. Tumia muda wako vizuri na omba msaada endapo una ugumu katika {weak_subject}."},
-        {'min': 30, 'max': 49,  'text': "{name} lazima ujitahidi zaidi. Ongeza juhudi katika masomo yako na omba msaada wa mwalimu."},
-        {'min': 0,  'max': 29,  'text': "{name} anahitaji msaada wa haraka. Nahitaji kukutana na familia yake ili tuzungumze njia ya mbele."},
+        {'min': 75, 'max': 100, 'text': "Hongera {name}! Umefanya vizuri muhula huu. Endelea kudumisha juhudi katika {best_subject} na {weak_subject}."},
+        {'min': 65, 'max': 74,  'text': "Kazi nzuri {name}. Una uwezo wa kufanya vizuri zaidi, ongeza bidii katika {weak_subject}."},
+        {'min': 50, 'max': 64,  'text': "{name} una uwezo mzuri. Ukiongeza juhudi na umakini zaidi katika {weak_subject}, utafanikiwa."},
+        {'min': 30, 'max': 49,  'text': "{name} unashauriwa kuongeza bidii na ushirikiano mzuri katika masomo yako muhula ujao."},
+        {'min': 0,  'max': 29,  'text': "{name} anahitaji kuweka juhudi za ziada na umakini mkubwa zaidi katika masomo yake."},
     ],
     'academic_master': [
-        {'min': 75, 'max': 100, 'text': "{name} amefanya vizuri sana na wastani wa {avg}%. Tunampongeza kwa juhudi zake za muhula huu."},
-        {'min': 65, 'max': 74,  'text': "{name} amefanya vizuri na wastani wa {avg}%. Tunamtarajia aendelee kujitahidi ili afikia viwango vya juu zaidi."},
-        {'min': 50, 'max': 64,  'text': "{name} ana uwezo mkubwa. Wastani wa {avg}% unaonyesha anahitaji kujitahidi zaidi muhula ujao."},
-        {'min': 30, 'max': 49,  'text': "{name} anahitaji kufanya kazi kwa bidii zaidi. Wastani wa {avg}% haukidhi matarajio yetu."},
-        {'min': 0,  'max': 29,  'text': "{name} amepata matokeo ya chini sana na wastani wa {avg}%. Anahitaji msaada wa haraka."},
+        {'min': 75, 'max': 100, 'text': "Matokeo mazuri. {name} amepata wastani wa {avg}%. Endelea na moyo huo muhula ujao."},
+        {'min': 65, 'max': 74,  'text': "Matokeo ya kuridhisha. Wastani wa {avg}% unaonyesha uwezo na fursa ya kufanya vizuri zaidi."},
+        {'min': 50, 'max': 64,  'text': "Wastani wa {avg}%. {name} ana nafasi kubwa ya kuboresha matokeo yake akiongeza juhudi."},
+        {'min': 30, 'max': 49,  'text': "Wastani wa {avg}%. Anahimizwa kuongeza bidii ili kufikia viwango vya juu zaidi."},
+        {'min': 0,  'max': 29,  'text': "Wastani wa {avg}%. Anahitaji usimamizi wa karibu na juhudi binafsi ili kuboresha matokeo."},
     ],
     'headmaster': [
-        {'min': 75, 'max': 100, 'text': "Tunampongeza sana {name} kwa nafasi ya {position} kati ya wanafunzi {total}. Endelea na tabia njema na juhudi kubwa."},
-        {'min': 65, 'max': 74,  'text': "{name} ameshika nafasi ya {position} kati ya wanafunzi {total}. Tunampongeza na kumtia moyo aendelee."},
-        {'min': 50, 'max': 64,  'text': "{name} ameshika nafasi ya {position}. Tunaamini anaweza kufanya vizuri zaidi akijitahidi muhula ujao."},
-        {'min': 30, 'max': 49,  'text': "{name} ameshika nafasi ya {position}. Anahitaji msaada na ushirikiano mkubwa wa familia yake."},
-        {'min': 0,  'max': 29,  'text': "Tunaomba {name} na familia yake wakutane na uongozi wa shule kujadili njia ya kuboresha hali yake ya masomo."},
+        {'min': 75, 'max': 100, 'text': "Pongezi kwa {name} kwa kushika nafasi ya {position} kati ya {total}. Endelea na juhudi hizi."},
+        {'min': 65, 'max': 74,  'text': "Hongera {name} kwa nafasi ya {position} kati ya {total}. Tunakutakia mafanikio mema zaidi."},
+        {'min': 50, 'max': 64,  'text': "{name} ameshika nafasi ya {position} kati ya {total}. Tunaamini ataendelea kupiga hatua."},
+        {'min': 30, 'max': 49,  'text': "{name} ameshika nafasi ya {position} kati ya {total}. Anatiwa moyo kuongeza bidii muhula ujao."},
+        {'min': 0,  'max': 29,  'text': "{name} ameshika nafasi ya {position} kati ya {total}. Anahimizwa kuweka umakini zaidi masomoni."},
     ],
 }
 

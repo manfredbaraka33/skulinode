@@ -110,6 +110,7 @@ class SubjectDetailView(RetrieveUpdateDestroyAPIView):
 class SubjectAssignmentListCreateView(ListCreateAPIView):
     serializer_class = SubjectAssignmentSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None 
 
     def get_queryset(self):
         qs = SubjectAssignment.objects.filter(
